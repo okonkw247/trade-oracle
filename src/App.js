@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF'];
-const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const API = '';
 const isJPY = (pair) => pair.includes('JPY');
 
 export default function App() {
