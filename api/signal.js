@@ -2,41 +2,29 @@ const axios = require('axios');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  
   const { pair, price, trend, rsi, high, low, closes } = req.body;
   if (!pair || !price) return res.status(400).json({ error: 'Missing data' });
+  
   try {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.1-8b-instant',
-        max_tokens: 500,
+        max_tokens: 300,
+        temperature: 0.3,
         messages: [
           {
             role: 'system',
-            content: `You are an expert Forex trading analyst. Respond ONLY in this exact JSON format with no extra text:
-{
-  "signal": "BUY" or "SELL" or "WAIT",
-  "entry": number,
-  "sl": number,
-  "tp1": number,
-  "tp2": number,
-  "rr": "1:2",
-  "confidence": number between 50-95,
-  "reason": "short reason",
-  "action": "exactly what to do right now"
-}`
+            content: `Forex analyst. Reply ONLY in JSON:
+{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 50-95,"reason":"short","action":"what to do now"}`
           },
           {
             role: 'user',
-            content: `Pair: ${pair}
-Current price: ${price}
-Trend: ${trend}
-RSI: ${rsi}
-20 candle high: ${high}
-20 candle low: ${low}
-Last 5 closes: ${closes}
-Give me a trading signal now. Be confident based on RSI and trend.`
+            content: `${pair} price:${price} trend:${trend} RSI:${rsi} high:${high} low:${low} closes:${closes}`
           }
         ]
       },
@@ -44,7 +32,8 @@ Give me a trading signal now. Be confident based on RSI and trend.`
         headers: {
           Authorization: `Bearer ${process.env.GROQ_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 8000
       }
     );
     const text = response.data.choices[0].message.content;
