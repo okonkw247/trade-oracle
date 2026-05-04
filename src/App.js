@@ -5,6 +5,31 @@ const PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF'];
 const API = '';
 const isJPY = (pair) => pair.includes('JPY');
 
+const GlobalStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #050508; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 2px; }
+    ::-webkit-scrollbar-track { background: #050508; }
+    ::-webkit-scrollbar-thumb { background: #00FF9D; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes glow { 0%,100%{box-shadow:0 0 20px #00FF9D22} 50%{box-shadow:0 0 40px #00FF9D55} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes scanline { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+    .fade-up { animation: fadeUp 0.6s ease forwards; }
+    .glow-card { animation: glow 3s ease-in-out infinite; }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+    .scanline-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,157,0.015) 2px, rgba(0,255,157,0.015) 4px);
+      pointer-events: none; z-index: 999;
+    }
+  `}</style>
+);
+
 export default function App() {
   const [pair, setPair] = useState('EUR/USD');
   const [price, setPrice] = useState(null);
@@ -16,6 +41,7 @@ export default function App() {
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
   const [trend, setTrend] = useState(null);
+  const [tick, setTick] = useState(0);
 
   const calculateRSI = (closes) => {
     if (closes.length < 14) return null;
@@ -41,6 +67,7 @@ export default function App() {
       setPrice(latest);
       setCandles(vals);
       setLastUpdated(new Date().toLocaleTimeString());
+      setTick(t => t + 1);
       const rsiVal = calculateRSI(closes);
       setRsi(rsiVal);
       const trendDir = latest > closes[0] ? 'UPTREND' : 'DOWNTREND';
@@ -50,27 +77,20 @@ export default function App() {
       const decimals = isJPY(pair) ? 3 : 5;
       setLoading(true);
       const sigRes = await axios.post(`${API}/api/signal`, {
-        pair,
-        price: latest.toFixed(decimals),
-        trend: trendDir,
-        rsi: rsiVal || 'N/A',
-        high: high.toFixed(decimals),
+        pair, price: latest.toFixed(decimals), trend: trendDir,
+        rsi: rsiVal || 'N/A', high: high.toFixed(decimals),
         low: low.toFixed(decimals),
         closes: closes.slice(-5).map(c => c.toFixed(decimals)).join(', ')
       });
       setSignal(sigRes.data);
     } catch (err) {
-      setError('Connection error — retrying...');
+      setError('FEED ERROR — RETRYING');
     }
     setLoading(false);
   }, [pair, price]);
 
   useEffect(() => {
-    setSignal(null);
-    setPrice(null);
-    setRsi(null);
-    setCandles([]);
-    setTrend(null);
+    setSignal(null); setPrice(null); setRsi(null); setCandles([]); setTrend(null);
   }, [pair]);
 
   useEffect(() => {
@@ -79,161 +99,208 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchAndAnalyze]);
 
-  const signalColor = signal?.signal === 'BUY' ? '#00FF9D' : signal?.signal === 'SELL' ? '#FF4444' : '#888';
+  const signalColor = signal?.signal === 'BUY' ? '#00FF9D' : signal?.signal === 'SELL' ? '#FF3B3B' : '#666';
   const priceUp = price > prevPrice;
   const decimals = isJPY(pair) ? 3 : 5;
 
   const getRSIInfo = () => {
-    if (!rsi) return { label: 'N/A', color: '#666' };
-    if (rsi >= 70) return { label: `${rsi} OVERBOUGHT`, color: '#FF4444' };
+    if (!rsi) return { label: 'N/A', color: '#444' };
+    if (rsi >= 70) return { label: `${rsi} OVERBOUGHT`, color: '#FF3B3B' };
     if (rsi <= 30) return { label: `${rsi} OVERSOLD`, color: '#00FF9D' };
     return { label: `${rsi} NEUTRAL`, color: '#888' };
   };
   const rsiInfo = getRSIInfo();
 
+  const cardStyle = {
+    background: 'linear-gradient(135deg, #0a0a0f 0%, #0d0d14 100%)',
+    border: '1px solid #ffffff08',
+    padding: '16px',
+    marginBottom: '10px',
+    position: 'relative',
+    overflow: 'hidden',
+  };
+
   return (
-    <div style={{ background: '#080c10', minHeight: '100vh', color: '#fff', fontFamily: 'monospace', padding: '16px', maxWidth: '480px', margin: '0 auto' }}>
+    <div style={{ background: '#050508', minHeight: '100vh', color: '#fff', fontFamily: "'JetBrains Mono', monospace", maxWidth: '480px', margin: '0 auto', position: 'relative' }}>
+      <GlobalStyles />
+      <div className="scanline-overlay" />
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <div style={{ color: '#00FF9D', fontSize: '22px', fontWeight: 'bold', letterSpacing: '3px' }}>TRADE</div>
-          <div style={{ color: '#00FF9D', fontSize: '22px', fontWeight: 'bold', letterSpacing: '3px', marginTop: '-6px' }}>ORACLE</div>
-        </div>
-        <div style={{ fontSize: '10px', textAlign: 'right' }}>
-          <div style={{ color: '#00FF9D99' }}>AI FOREX SIGNALS</div>
-          {lastUpdated && <div style={{ color: '#00FF9D55' }}>⟳ {lastUpdated}</div>}
+      {/* Top Bar */}
+      <div style={{ background: '#00FF9D', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '10px', color: '#000', fontWeight: '700', letterSpacing: '3px' }}>TRADE ORACLE v1.0</div>
+        <div style={{ fontSize: '10px', color: '#000', fontWeight: '600' }}>
+          {lastUpdated ? `⟳ ${lastUpdated}` : 'CONNECTING...'}
         </div>
       </div>
 
-      {/* Pair Selector */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {PAIRS.map(p => (
-          <button key={p} onClick={() => setPair(p)} style={{
-            background: pair === p ? '#00FF9D' : '#0d1117',
-            color: pair === p ? '#000' : '#555',
-            border: `1px solid ${pair === p ? '#00FF9D' : '#ffffff11'}`,
-            borderRadius: '6px', padding: '7px 12px',
-            fontSize: '11px', fontFamily: 'monospace',
-            cursor: 'pointer', whiteSpace: 'nowrap',
-            fontWeight: pair === p ? 'bold' : 'normal'
-          }}>{p}</button>
-        ))}
+      {/* Ticker */}
+      <div style={{ background: '#0a0a0f', borderBottom: '1px solid #ffffff08', padding: '8px 0', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'inline-block', animation: 'ticker 20s linear infinite', fontSize: '10px', color: '#00FF9D55', letterSpacing: '2px' }}>
+          {PAIRS.map(p => `  ${p}  •  `).join('')}{PAIRS.map(p => `  ${p}  •  `).join('')}
+        </div>
       </div>
 
-      {/* Price + RSI */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-        <div style={{ background: '#0d1117', border: '1px solid #00FF9D22', borderRadius: '12px', padding: '16px' }}>
-          <div style={{ fontSize: '10px', color: '#444', marginBottom: '6px' }}>LIVE PRICE</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: price ? (priceUp ? '#00FF9D' : '#FF4444') : '#333' }}>
-            {price ? price.toFixed(decimals) : '---'}
+      <div style={{ padding: '16px' }}>
+
+        {/* Header */}
+        <div className="fade-up" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '52px', color: '#00FF9D', lineHeight: '0.9', letterSpacing: '4px' }}>TRADE</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '52px', color: '#fff', lineHeight: '0.9', letterSpacing: '4px' }}>ORACLE</div>
           </div>
-          <div style={{ fontSize: '16px', marginTop: '2px' }}>
-            {price && prevPrice ? (priceUp ? '▲' : '▼') : ''}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px' }}>AI FOREX</div>
+            <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px' }}>SIGNALS</div>
+            <div style={{ width: '6px', height: '6px', background: price ? '#00FF9D' : '#FF3B3B', marginLeft: 'auto', marginTop: '6px' }} className={price ? 'pulse' : ''} />
           </div>
         </div>
-        <div style={{ background: '#0d1117', border: '1px solid #00FF9D22', borderRadius: '12px', padding: '16px' }}>
-          <div style={{ fontSize: '10px', color: '#444', marginBottom: '6px' }}>RSI (14)</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: rsiInfo.color }}>{rsiInfo.label}</div>
-          <div style={{ fontSize: '10px', color: '#333', marginTop: '4px' }}>5min candles</div>
-        </div>
-      </div>
 
-      {/* Candle Summary */}
-      {candles.length > 0 && (
-        <div style={{ background: '#0d1117', border: '1px solid #ffffff08', borderRadius: '10px', padding: '12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between' }}>
-          {[
-            { label: 'HIGH', value: Math.max(...candles.map(c => parseFloat(c.high))).toFixed(decimals), color: '#00FF9D' },
-            { label: 'LOW', value: Math.min(...candles.map(c => parseFloat(c.low))).toFixed(decimals), color: '#FF4444' },
-            { label: 'CANDLES', value: `${candles.length} × 5m`, color: '#fff' },
-            { label: 'TREND', value: trend === 'UPTREND' ? '▲ UP' : '▼ DOWN', color: trend === 'UPTREND' ? '#00FF9D' : '#FF4444' },
-          ].map(item => (
-            <div key={item.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '9px', color: '#444' }}>{item.label}</div>
-              <div style={{ fontSize: '12px', color: item.color, marginTop: '2px' }}>{item.value}</div>
-            </div>
+        {/* Pair Selector */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {PAIRS.map(p => (
+            <button key={p} onClick={() => setPair(p)} style={{
+              background: pair === p ? '#00FF9D' : 'transparent',
+              color: pair === p ? '#000' : '#333',
+              border: `1px solid ${pair === p ? '#00FF9D' : '#ffffff11'}`,
+              padding: '6px 12px', fontSize: '10px',
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              fontWeight: pair === p ? '700' : '400',
+              letterSpacing: '1px', transition: 'all 0.2s'
+            }}>{p}</button>
           ))}
         </div>
-      )}
 
-      {/* Signal Card */}
-      <div style={{
-        background: '#0d1117', border: `2px solid ${signalColor}33`,
-        borderRadius: '14px', padding: '20px', marginBottom: '14px',
-        position: 'relative', overflow: 'hidden'
-      }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: signalColor }} />
-        <div style={{ fontSize: '10px', color: '#444', marginBottom: '12px' }}>AI SIGNAL</div>
-
-        {loading ? (
-          <div style={{ color: '#00FF9D', fontSize: '14px', padding: '20px 0' }}>⟳ Analyzing market data...</div>
-        ) : error ? (
-          <div style={{ color: '#FF4444', fontSize: '13px' }}>⚠️ {error}</div>
-        ) : signal ? (
-          <>
-            <div style={{ fontSize: '38px', fontWeight: 'bold', color: signalColor, letterSpacing: '4px', marginBottom: '18px' }}>
-              {signal.signal === 'BUY' ? '🟢' : signal.signal === 'SELL' ? '🔴' : '⚪'} {signal.signal}
+        {/* Price + RSI */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+          <div style={cardStyle} className="fade-up">
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: priceUp ? '#00FF9D' : '#FF3B3B' }} />
+            <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '8px' }}>LIVE PRICE</div>
+            <div style={{ fontSize: '26px', fontWeight: '700', color: price ? (priceUp ? '#00FF9D' : '#FF3B3B') : '#222', paddingLeft: '8px', letterSpacing: '-1px' }}>
+              {price ? price.toFixed(decimals) : '-.-----'}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-              {[
-                { label: 'ENTRY', value: signal.entry?.toFixed(decimals), color: '#fff' },
-                { label: 'STOP LOSS', value: signal.sl?.toFixed(decimals), color: '#FF4444' },
-                { label: 'TP 1', value: signal.tp1?.toFixed(decimals), color: '#00FF9D' },
-                { label: 'TP 2', value: signal.tp2?.toFixed(decimals), color: '#00FF9D' },
-              ].map(item => (
-                <div key={item.label} style={{ background: '#080c10', borderRadius: '8px', padding: '10px' }}>
-                  <div style={{ fontSize: '9px', color: '#444', marginBottom: '4px' }}>{item.label}</div>
-                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: item.color }}>{item.value || '---'}</div>
-                </div>
-              ))}
+            <div style={{ fontSize: '14px', color: price && prevPrice ? (priceUp ? '#00FF9D' : '#FF3B3B') : 'transparent', paddingLeft: '8px', marginTop: '2px' }}>
+              {priceUp ? '▲' : '▼'}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ fontSize: '11px', color: '#555' }}>R/R: <span style={{ color: '#00FF9D' }}>{signal.rr}</span></div>
-              <div style={{ fontSize: '11px', color: '#555' }}>Confidence: <span style={{ color: signalColor }}>{signal.confidence}%</span></div>
-            </div>
-            <div style={{ background: `${signalColor}11`, border: `1px solid ${signalColor}33`, borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
-              <div style={{ fontSize: '9px', color: '#444', marginBottom: '4px' }}>⚡ ACTION NOW</div>
-              <div style={{ fontSize: '13px', color: signalColor, lineHeight: '1.5' }}>{signal.action}</div>
-            </div>
-            <div style={{ fontSize: '11px', color: '#444' }}>📊 {signal.reason}</div>
-          </>
-        ) : (
-          <div style={{ color: '#333', fontSize: '13px', padding: '20px 0' }}>Loading signal...</div>
-        )}
-      </div>
-
-      {/* Confidence Bar */}
-      {signal && (
-        <div style={{ background: '#0d1117', border: '1px solid #ffffff08', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ fontSize: '10px', color: '#444' }}>CONFIDENCE</div>
-            <div style={{ fontSize: '11px', color: signalColor }}>{signal.confidence}%</div>
           </div>
-          <div style={{ background: '#080c10', borderRadius: '99px', height: '6px', overflow: 'hidden' }}>
-            <div style={{
-              width: `${signal.confidence}%`, height: '100%',
-              background: `linear-gradient(90deg, ${signalColor}, ${signalColor}88)`,
-              borderRadius: '99px', transition: 'width 0.8s ease'
-            }} />
+
+          <div style={cardStyle} className="fade-up">
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: rsiInfo.color }} />
+            <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '8px' }}>RSI (14)</div>
+            <div style={{ fontSize: '16px', fontWeight: '700', color: rsiInfo.color, paddingLeft: '8px', lineHeight: '1.3' }}>
+              {rsiInfo.label}
+            </div>
+            <div style={{ fontSize: '9px', color: '#222', paddingLeft: '8px', marginTop: '4px' }}>5MIN CANDLES</div>
           </div>
         </div>
-      )}
 
-      {/* Refresh Button */}
-      <button onClick={fetchAndAnalyze} disabled={loading} style={{
-        width: '100%', padding: '14px',
-        background: loading ? '#0d1117' : '#00FF9D11',
-        border: '1px solid #00FF9D33', borderRadius: '10px',
-        color: loading ? '#333' : '#00FF9D',
-        fontSize: '13px', fontFamily: 'monospace',
-        cursor: loading ? 'not-allowed' : 'pointer',
-        letterSpacing: '2px', marginBottom: '20px'
-      }}>
-        {loading ? '⟳ ANALYZING...' : '⟳ REFRESH SIGNAL'}
-      </button>
+        {/* Market Stats */}
+        {candles.length > 0 && (
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0' }} className="fade-up">
+            {[
+              { label: 'HIGH', value: Math.max(...candles.map(c => parseFloat(c.high))).toFixed(decimals), color: '#00FF9D' },
+              { label: 'LOW', value: Math.min(...candles.map(c => parseFloat(c.low))).toFixed(decimals), color: '#FF3B3B' },
+              { label: 'CANDLES', value: `${candles.length}×5M`, color: '#fff' },
+              { label: 'TREND', value: trend === 'UPTREND' ? '▲ UP' : '▼ DOWN', color: trend === 'UPTREND' ? '#00FF9D' : '#FF3B3B' },
+            ].map((item, i) => (
+              <div key={item.label} style={{ textAlign: 'center', padding: '8px 4px', borderLeft: i > 0 ? '1px solid #ffffff08' : 'none' }}>
+                <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '4px' }}>{item.label}</div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: item.color }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
-      <div style={{ textAlign: 'center', fontSize: '9px', color: '#1a1a1a' }}>
-        TRADE ORACLE • AI SIGNALS • NOT FINANCIAL ADVICE
+        {/* Signal Card */}
+        <div style={{
+          ...cardStyle,
+          border: `1px solid ${signalColor}44`,
+          marginBottom: '10px',
+        }} className={signal ? 'glow-card fade-up' : 'fade-up'}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: `linear-gradient(90deg, transparent, ${signalColor}, transparent)` }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: signalColor }} />
+
+          <div style={{ fontSize: '9px', color: '#333', letterSpacing: '3px', marginBottom: '16px', paddingLeft: '12px' }}>AI SIGNAL ENGINE</div>
+
+          {loading ? (
+            <div style={{ color: '#00FF9D', fontSize: '12px', paddingLeft: '12px', letterSpacing: '2px' }} className="pulse">
+              ⟳ ANALYZING MARKET DATA...
+            </div>
+          ) : error ? (
+            <div style={{ color: '#FF3B3B', fontSize: '12px', paddingLeft: '12px', letterSpacing: '1px' }}>⚠ {error}</div>
+          ) : signal ? (
+            <>
+              {/* Big Signal */}
+              <div style={{ paddingLeft: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '72px', color: signalColor, lineHeight: '1', letterSpacing: '6px' }}>
+                  {signal.signal}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '9px', color: '#333', letterSpacing: '1px' }}>CONFIDENCE</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: signalColor }}>{signal.confidence}%</div>
+                </div>
+              </div>
+
+              {/* Levels Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: '#ffffff08', marginBottom: '12px' }}>
+                {[
+                  { label: 'ENTRY', value: signal.entry?.toFixed(decimals), color: '#fff' },
+                  { label: 'STOP LOSS', value: signal.sl?.toFixed(decimals), color: '#FF3B3B' },
+                  { label: 'TAKE PROFIT 1', value: signal.tp1?.toFixed(decimals), color: '#00FF9D' },
+                  { label: 'TAKE PROFIT 2', value: signal.tp2?.toFixed(decimals), color: '#00FF9D' },
+                ].map(item => (
+                  <div key={item.label} style={{ background: '#0a0a0f', padding: '12px', }}>
+                    <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '6px' }}>{item.label}</div>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: item.color, letterSpacing: '-0.5px' }}>{item.value || '---'}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* R/R Bar */}
+              <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '10px', color: '#444' }}>RISK/REWARD <span style={{ color: '#00FF9D', fontWeight: '700' }}>{signal.rr}</span></div>
+                <div style={{ fontSize: '10px', color: '#444' }}>PAIR <span style={{ color: '#fff', fontWeight: '700' }}>{pair}</span></div>
+              </div>
+
+              {/* Confidence Bar */}
+              <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '14px' }}>
+                <div style={{ background: '#0a0a0f', height: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${signal.confidence}%`, height: '100%', background: signalColor, transition: 'width 1s ease' }} />
+                </div>
+              </div>
+
+              {/* Action Box */}
+              <div style={{ margin: '0 12px 12px', background: `${signalColor}0d`, borderLeft: `3px solid ${signalColor}`, padding: '12px' }}>
+                <div style={{ fontSize: '8px', color: signalColor, letterSpacing: '2px', marginBottom: '6px' }}>⚡ ACTION NOW</div>
+                <div style={{ fontSize: '12px', color: '#ccc', lineHeight: '1.6' }}>{signal.action}</div>
+              </div>
+
+              <div style={{ paddingLeft: '12px', paddingRight: '12px', fontSize: '10px', color: '#333', lineHeight: '1.5' }}>
+                📊 {signal.reason}
+              </div>
+            </>
+          ) : (
+            <div style={{ color: '#222', fontSize: '12px', paddingLeft: '12px', letterSpacing: '1px' }}>INITIALIZING...</div>
+          )}
+        </div>
+
+        {/* Refresh Button */}
+        <button onClick={fetchAndAnalyze} disabled={loading} style={{
+          width: '100%', padding: '16px',
+          background: 'transparent',
+          border: `1px solid ${loading ? '#ffffff11' : '#00FF9D44'}`,
+          color: loading ? '#333' : '#00FF9D',
+          fontSize: '11px', fontFamily: "'JetBrains Mono', monospace",
+          cursor: loading ? 'not-allowed' : 'pointer',
+          letterSpacing: '4px', marginBottom: '20px',
+          transition: 'all 0.2s'
+        }}>
+          {loading ? '⟳ ANALYZING...' : '⟳ REFRESH SIGNAL'}
+        </button>
+
+        <div style={{ textAlign: 'center', fontSize: '8px', color: '#111', letterSpacing: '2px', marginBottom: '20px' }}>
+          TRADE ORACLE • AI SIGNALS • NOT FINANCIAL ADVICE
+        </div>
       </div>
     </div>
   );
