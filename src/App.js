@@ -140,12 +140,29 @@ export default function App() {
       });
       setSignal(sigRes.data);
       if (notifGranted && sigRes.data.signal !== lastSignal && sigRes.data.signal !== 'WAIT') {
-        const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
-        new Notification(`${emoji} ${sigRes.data.signal} ${pair}`, {
-          body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
-          icon: '/logo192.png',
-        });
-        setLastSignal(sigRes.data.signal);
+                const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.ready.then(reg => {
+                                          reg.showNotification(`${emoji} ${sigRes.data.signal} ${pair}`, {
+                                                          body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
+                                                          icon: '/logo192.png',
+                                                          badge: '/logo192.png',
+                                                          vibrate: [200, 100, 200],
+                                                        });
+                                        });
+                          } else {
+                                      new Notification(`${emoji} ${sigRes.data.signal} ${pair}`, {
+                                                    body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
+                                                    icon: '/logo192.png',
+                                                  });
+                                    }
+                setLastSignal(sigRes.data.signal);
+              }
+                                      })
+                          }
+                                          })
+                            })
+                }
       }
     } catch (err) {
       setError('FEED ERROR — RETRYING');
