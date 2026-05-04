@@ -41,7 +41,7 @@ export default function App() {
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
   const [trend, setTrend] = useState(null);
-  const [tick, setTick] = useState(0);
+  
 
   const calculateRSI = (closes) => {
     if (closes.length < 14) return null;
@@ -67,7 +67,7 @@ export default function App() {
       setPrice(latest);
       setCandles(vals);
       setLastUpdated(new Date().toLocaleTimeString());
-      setTick(t => t + 1);
+      
       const rsiVal = calculateRSI(closes);
       setRsi(rsiVal);
       const trendDir = latest > closes[0] ? 'UPTREND' : 'DOWNTREND';
