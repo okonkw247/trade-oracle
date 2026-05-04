@@ -41,6 +41,8 @@ export default function App() {
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
   const [trend, setTrend] = useState(null);
+  const [lastSignal, setLastSignal] = useState(null);
+  const [notifGranted, setNotifGranted] = useState(false);
   
 
   const calculateRSI = (closes) => {
@@ -54,7 +56,16 @@ export default function App() {
     const rs = (gains / 14) / (losses / 14);
     return Math.round(100 - (100 / (1 + rs)));
   };
+   const requestNotifications = async () => {
+       if ('Notification' in window) {
+             const permission = await Notification.requestPermission();
+             setNotifGranted(permission === 'granted');
+           }
+   };
 
+  useEffect(() => { requestNotifications(); }, []);
+       }
+   }
   const fetchAndAnalyze = useCallback(async () => {
     setError(null);
     try {
@@ -83,6 +94,17 @@ export default function App() {
         closes: closes.slice(-5).map(c => c.toFixed(decimals)).join(', ')
       });
       setSignal(sigRes.data);
+      if (notifGranted && sigRes.data.signal !== lastSignal && sigRes.data.signal !== 'WAIT') {
+          const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
+          new Notification(`${emoji} ${sigRes.data.signal} ${pair}`, {
+                body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
+                icon: '/logo192.png',
+                vibrate: [200, 100, 200]
+              });
+          setLastSignal(sigRes.data.signal);
+      }
+          })
+      }
     } catch (err) {
       setError('FEED ERROR — RETRYING');
     }
