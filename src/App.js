@@ -16,7 +16,6 @@ const GlobalStyles = () => (
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     @keyframes glow { 0%,100%{box-shadow:0 0 20px #00FF9D22} 50%{box-shadow:0 0 40px #00FF9D55} }
     @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     @keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
     @keyframes logoReveal { 0%{opacity:0;transform:scale(0.8)} 100%{opacity:1;transform:scale(1)} }
     @keyframes lineExpand { 0%{width:0} 100%{width:120px} }
@@ -93,12 +92,29 @@ export default function App() {
   const [trend, setTrend] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
   const [notifGranted, setNotifGranted] = useState(false);
+  const [usage, setUsage] = useState(null);
+  const [signalsToday, setSignalsToday] = useState(0);
 
   useEffect(() => {
     if ('Notification' in window) {
       Notification.requestPermission().then(p => setNotifGranted(p === 'granted'));
     }
   }, []);
+
+  const fetchUsage = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/api/usage`);
+      setUsage(res.data);
+    } catch (err) {
+      console.error('Usage fetch failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsage();
+    const interval = setInterval(fetchUsage, 60000);
+    return () => clearInterval(interval);
+  }, [fetchUsage]);
 
   const calculateRSI = (closes) => {
     if (closes.length < 14) return null;
@@ -139,30 +155,20 @@ export default function App() {
         closes: closes.slice(-5).map(c => c.toFixed(decimals)).join(', ')
       });
       setSignal(sigRes.data);
+      setSignalsToday(s => s + 1);
       if (notifGranted && sigRes.data.signal !== lastSignal && sigRes.data.signal !== 'WAIT') {
-                const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                            navigator.serviceWorker.ready.then(reg => {
-                                          reg.showNotification(`${emoji} ${sigRes.data.signal} ${pair}`, {
-                                                          body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
-                                                          icon: '/logo192.png',
-                                                          badge: '/logo192.png',
-                                                          vibrate: [200, 100, 200],
-                                                        });
-                                        });
-                          } else {
-                                      new Notification(`${emoji} ${sigRes.data.signal} ${pair}`, {
-                                                    body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
-                                                    icon: '/logo192.png',
-                                                  });
-                                    }
-                setLastSignal(sigRes.data.signal);
-              }
-                                      })
-                          }
-                                          })
-                            })
-                }
+        const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(`${emoji} ${sigRes.data.signal} ${pair}`, {
+              body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
+              icon: '/logo192.png',
+              badge: '/logo192.png',
+              vibrate: [200, 100, 200],
+            });
+          });
+        }
+        setLastSignal(sigRes.data.signal);
       }
     } catch (err) {
       setError('FEED ERROR — RETRYING');
@@ -198,6 +204,11 @@ export default function App() {
     padding: '16px', marginBottom: '10px',
     position: 'relative', overflow: 'hidden',
   };
+
+  const creditsUsed = usage?.current_usage || 0;
+  const creditsTotal = usage?.daily_limit || 800;
+  const creditsPercent = Math.round((creditsUsed / creditsTotal) * 100);
+  const creditsColor = creditsPercent > 80 ? '#FF3B3B' : creditsPercent > 50 ? '#FFD700' : '#00FF9D';
 
   if (showSplash) return (
     <>
@@ -240,6 +251,31 @@ export default function App() {
           </div>
         </div>
 
+        {/* Credits Dashboard */}
+        <div style={{ ...cardStyle, marginBottom: '10px' }} className="fade-up">
+          <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '12px' }}>API CREDITS DASHBOARD</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '4px' }}>USED TODAY</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: creditsColor }}>{creditsUsed}</div>
+            </div>
+            <div style={{ textAlign: 'center', borderLeft: '1px solid #ffffff08', borderRight: '1px solid #ffffff08' }}>
+              <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '4px' }}>DAILY LIMIT</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#fff' }}>{creditsTotal}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '4px' }}>SIGNALS</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#00FF9D' }}>{signalsToday}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '6px' }}>
+            CREDITS REMAINING: <span style={{ color: creditsColor }}>{creditsTotal - creditsUsed}</span>
+          </div>
+          <div style={{ background: '#050508', height: '3px', overflow: 'hidden' }}>
+            <div style={{ width: `${creditsPercent}%`, height: '100%', background: creditsColor, transition: 'width 0.5s ease' }} />
+          </div>
+        </div>
+
         {/* Pair Selector */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
           {PAIRS.map(p => (
@@ -273,7 +309,7 @@ export default function App() {
             <div style={{ position: 'absolute', top: 0, left: 0, width: '3px', height: '100%', background: rsiInfo.color }} />
             <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '8px' }}>RSI (14)</div>
             <div style={{ fontSize: '16px', fontWeight: '700', color: rsiInfo.color, paddingLeft: '8px', lineHeight: '1.3' }}>{rsiInfo.label}</div>
-            <div style={{ fontSize: '9px', color: '#222', paddingLeft: '8px', marginTop: '4px' }}>5MIN CANDLES</div>
+            <div style={{ fontSize: '9px', color: '#222', paddingLeft: '8px', marginTop: '4px' }}>1MIN CANDLES</div>
           </div>
         </div>
 
@@ -283,7 +319,7 @@ export default function App() {
             {[
               { label: 'HIGH', value: Math.max(...candles.map(c => parseFloat(c.high))).toFixed(decimals), color: '#00FF9D' },
               { label: 'LOW', value: Math.min(...candles.map(c => parseFloat(c.low))).toFixed(decimals), color: '#FF3B3B' },
-              { label: 'CANDLES', value: `${candles.length}×5M`, color: '#fff' },
+              { label: 'CANDLES', value: `${candles.length}×1M`, color: '#fff' },
               { label: 'TREND', value: trend === 'UPTREND' ? '▲ UP' : '▼ DOWN', color: trend === 'UPTREND' ? '#00FF9D' : '#FF3B3B' },
             ].map((item, i) => (
               <div key={item.label} style={{ textAlign: 'center', padding: '10px 4px', borderLeft: i > 0 ? '1px solid #ffffff08' : 'none' }}>
@@ -333,17 +369,6 @@ export default function App() {
                 <div style={{ fontSize: '10px', color: '#444' }}>PAIR <span style={{ color: '#fff', fontWeight: '700' }}>{pair}</span></div>
               </div>
 
-              <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '14px' }}>
-                <div style={{ background: '#0a0a0f', height: '3px', overflow: 'hidden' }}>
-                  <div style={{ width: `${signal.confidence}%`, height: '100%', background: signalColor, transition: 'width 1s ease' }} />
-                </div>
-              </div>
-
-              <div style={{ margin: '0 12px 12px', background: `${signalColor}0d`, borderLeft: `3px solid ${signalColor}`, padding: '12px' }}>
-                <div style={{ fontSize: '8px', color: signalColor, letterSpacing: '2px', marginBottom: '6px' }}>⚡ ACTION NOW</div>
-                <div style={{ fontSize: '12px', color: '#ccc', lineHeight: '1.6' }}>{signal.action}</div>
-              </div>
-
               <div style={{ paddingLeft: '12px', paddingRight: '12px', fontSize: '10px', color: '#333', lineHeight: '1.5' }}>📊 {signal.reason}</div>
             </>
           ) : (
@@ -358,7 +383,7 @@ export default function App() {
           color: loading ? '#333' : '#00FF9D',
           fontSize: '11px', fontFamily: "'JetBrains Mono', monospace",
           cursor: loading ? 'not-allowed' : 'pointer',
-          letterSpacing: '4px', marginBottom: '20px', transition: 'all 0.2s'
+          letterSpacing: '4px', marginBottom: '10px', transition: 'all 0.2s'
         }}>
           {loading ? '⟳ ANALYZING...' : '⟳ REFRESH SIGNAL'}
         </button>

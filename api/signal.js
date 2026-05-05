@@ -5,26 +5,26 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  
+
   const { pair, price, trend, rsi, high, low, closes } = req.body;
   if (!pair || !price) return res.status(400).json({ error: 'Missing data' });
-  
+
   try {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.1-8b-instant',
         max_tokens: 300,
-        temperature: 0.3,
+        temperature: 0.2,
         messages: [
           {
             role: 'system',
-            content: `Forex analyst. Reply ONLY in JSON:
-{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 50-95,"reason":"short","action":"what to do now"}`
+            content: `You are an aggressive Forex scalper analyst. You MUST give BUY or SELL signals. Only use WAIT if market is completely flat with no movement. Be decisive. Reply ONLY in JSON:
+{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 65-95,"reason":"short","action":"what to do now"}`
           },
           {
             role: 'user',
-            content: `${pair} price:${price} trend:${trend} RSI:${rsi} high:${high} low:${low} closes:${closes}`
+            content: `${pair} price:${price} trend:${trend} RSI:${rsi} high:${high} low:${low} last closes:${closes}. Give BUY or SELL signal based on momentum.`
           }
         ]
       },

@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   if (!pair) return res.status(400).json({ error: 'pair required' });
   try {
     const response = await axios.get(
-      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair)}&interval=5min&outputsize=20&apikey=${process.env.TWELVE_KEY}`
+      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair)}&interval=1min&outputsize=30&apikey=${process.env.TWELVE_KEY}`
     );
     res.json(response.data);
   } catch (err) {
