@@ -369,7 +369,13 @@ export default function App() {
                 <div style={{ fontSize: '10px', color: '#444' }}>PAIR <span style={{ color: '#fff', fontWeight: '700' }}>{pair}</span></div>
               </div>
 
-              <div style={{ paddingLeft: '12px', paddingRight: '12px', fontSize: '10px', color: '#333', lineHeight: '1.5' }}>📊 {signal.reason}</div>
+              {signal.action && (
+              <div style={{ margin: '12px', padding: '12px', background: '#00FF9D11', border: '1px solid #00FF9D44', borderLeft: '3px solid #00FF9D' }}>
+                <div style={{ fontSize: '8px', color: '#00FF9D', letterSpacing: '2px', marginBottom: '8px' }}>⚡ WHAT TO DO NOW</div>
+                <div style={{ fontSize: '13px', color: '#fff', lineHeight: '1.6', fontWeight: '600' }}>{signal.action}</div>
+              </div>
+            )}
+            <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '12px', fontSize: '10px', color: '#444', lineHeight: '1.5' }}>📊 {signal.reason}</div>
             </>
           ) : (
             <div style={{ color: '#222', fontSize: '12px', paddingLeft: '12px', letterSpacing: '1px' }}>INITIALIZING...</div>
