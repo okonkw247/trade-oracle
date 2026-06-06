@@ -1,5 +1,23 @@
 const axios = require('axios');
 
+const enforcePips = (signal, entry, sl, tp1, tp2, pair) => {
+  const pipSize = pair.includes('JPY') ? 0.01 : 0.0001;
+  const minSL = 10 * pipSize;
+  const minTP1 = 15 * pipSize;
+  const minTP2 = 25 * pipSize;
+
+  if (signal === 'BUY') {
+    if (entry - sl < minSL) sl = parseFloat((entry - minSL).toFixed(5));
+    if (tp1 - entry < minTP1) tp1 = parseFloat((entry + minTP1).toFixed(5));
+    if (tp2 - entry < minTP2) tp2 = parseFloat((entry + minTP2).toFixed(5));
+  } else if (signal === 'SELL') {
+    if (sl - entry < minSL) sl = parseFloat((entry + minSL).toFixed(5));
+    if (entry - tp1 < minTP1) tp1 = parseFloat((entry - minTP1).toFixed(5));
+    if (entry - tp2 < minTP2) tp2 = parseFloat((entry - minTP2).toFixed(5));
+  }
+  return { sl, tp1, tp2 };
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,18 +38,11 @@ module.exports = async (req, res) => {
           {
             role: 'system',
             content: `You are an expert Forex trading analyst. Respond ONLY in this exact JSON format with no extra text:
-{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 65-95,"reason":"max 10 words","action":"Start with OPEN BUY / OPEN SELL / WAIT then explain why in one sentence"}
-
-STRICT RULES:
-- SL must be minimum 10 pips from entry
-- TP1 must be minimum 15 pips from entry
-- TP2 must be minimum 25 pips from entry
-- JPY pairs: 1 pip = 0.01. All others: 1 pip = 0.0001
-- Base SL on swing high/low not just current price`
+{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 65-95,"reason":"max 10 words","action":"Start with OPEN BUY / OPEN SELL / WAIT then explain why in one sentence"}`
           },
           {
             role: 'user',
-            content: `${pair} price:${price} trend:${trend} RSI:${rsi} high:${high} low:${low} last closes:${closes}. Give professional signal with realistic SL and TP.`
+            content: `${pair} price:${price} trend:${trend} RSI:${rsi} high:${high} low:${low} last closes:${closes}. Give signal.`
           }
         ]
       },
@@ -45,7 +56,14 @@ STRICT RULES:
     );
     const text = response.data.choices[0].message.content;
     const clean = text.replace(/```json|```/g, '').trim();
-    res.json(JSON.parse(clean));
+    const parsed = JSON.parse(clean);
+
+    const fixed = enforcePips(parsed.signal, parsed.entry, parsed.sl, parsed.tp1, parsed.tp2, pair);
+    parsed.sl = fixed.sl;
+    parsed.tp1 = fixed.tp1;
+    parsed.tp2 = fixed.tp2;
+
+    res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: 'Signal failed' });
   }
