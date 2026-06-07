@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { createChart } from 'lightweight-charts';
 
 const PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF'];
 const API = '';
@@ -167,15 +166,18 @@ const fetchAndAnalyze = useCallback(async () => {
       const low = Math.min(...vals.map(c => parseFloat(c.low)));
       const decimals = isJPY(pair) ? 3 : 5;
 
-      const [res15m, res1h] = await Promise.all([
-        axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}&interval=15min&outputsize=20`),
-        axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}&interval=1h&outputsize=20`)
-      ]);
-      const closes15m = res15m.data.values ? res15m.data.values.map(c => parseFloat(c.close)).reverse() : [];
-      const closes1h = res1h.data.values ? res1h.data.values.map(c => parseFloat(c.close)).reverse() : [];
-      const t15m = closes15m.length > 1 ? (closes15m[closes15m.length-1] > closes15m[0] ? 'UPTREND' : 'DOWNTREND') : 'NEUTRAL';
-      const t1h = closes1h.length > 1 ? (closes1h[closes1h.length-1] > closes1h[0] ? 'UPTREND' : 'DOWNTREND') : 'NEUTRAL';
-      const ema10_1h = calculateEMA(closes1h, 10);
+      let t15m = 'NEUTRAL', t1h = 'NEUTRAL', ema10_1h = null;
+      try {
+        const [res15m, res1h] = await Promise.all([
+          axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}&interval=15min&outputsize=20`),
+          axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}&interval=1h&outputsize=20`)
+        ]);
+        const closes15m = res15m.data.values ? res15m.data.values.map(c => parseFloat(c.close)).reverse() : [];
+        const closes1h = res1h.data.values ? res1h.data.values.map(c => parseFloat(c.close)).reverse() : [];
+        t15m = closes15m.length > 1 ? (closes15m[closes15m.length-1] > closes15m[0] ? 'UPTREND' : 'DOWNTREND') : trendDir;
+        t1h = closes1h.length > 1 ? (closes1h[closes1h.length-1] > closes1h[0] ? 'UPTREND' : 'DOWNTREND') : trendDir;
+        ema10_1h = calculateEMA(closes1h, 10);
+      } catch (mtfErr) { t15m = trendDir; t1h = trendDir; }
       setTrend15m(t15m);
       setTrend1h(t1h);
 
@@ -228,44 +230,7 @@ const fetchAndAnalyze = useCallback(async () => {
     setSignal(null); setPrice(null); setRsi(null); setCandles([]); setTrend(null);
   }, [pair]);
 
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 220,
-      layout: { background: { color: '#050508' }, textColor: '#444' },
-      grid: { vertLines: { color: '#ffffff08' }, horzLines: { color: '#ffffff08' } },
-      timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#ffffff11' },
-      rightPriceScale: { borderColor: '#ffffff11' },
-      crosshair: { vertLine: { color: '#00FF9D44' }, horzLine: { color: '#00FF9D44' } },
-    });
-    const cs = chart.addCandlestickSeries({
-      upColor: '#00FF9D', downColor: '#FF3B3B',
-      borderUpColor: '#00FF9D', borderDownColor: '#FF3B3B',
-      wickUpColor: '#00FF9D', wickDownColor: '#FF3B3B',
-    });
-    chartRef.current = chart;
-    candleSeriesRef.current = cs;
-    const ro = new ResizeObserver(() => chart.applyOptions({ width: chartContainerRef.current.clientWidth }));
-    ro.observe(chartContainerRef.current);
-    return () => { chart.remove(); ro.disconnect(); };
-  }, []);
 
-  useEffect(() => {
-    if (!candleSeriesRef.current || !candles.length) return;
-    const data = candles.map(c => ({
-      time: Math.floor(new Date(c.datetime.replace(' ', 'T') + 'Z').getTime() / 1000),
-      open: parseFloat(c.open), high: parseFloat(c.high),
-      low: parseFloat(c.low), close: parseFloat(c.close),
-    })).sort((a, b) => a.time - b.time);
-    candleSeriesRef.current.setData(data);
-    if (signal && signal.signal !== 'WAIT') {
-      candleSeriesRef.current.createPriceLine({ price: signal.entry, color: '#fff', lineWidth: 1, lineStyle: 2, title: 'ENTRY' });
-      candleSeriesRef.current.createPriceLine({ price: signal.sl, color: '#FF3B3B', lineWidth: 1, lineStyle: 2, title: 'SL' });
-      candleSeriesRef.current.createPriceLine({ price: signal.tp1, color: '#00FF9D', lineWidth: 1, lineStyle: 2, title: 'TP1' });
-      candleSeriesRef.current.createPriceLine({ price: signal.tp2, color: '#00FF9D', lineWidth: 1, lineStyle: 2, title: 'TP2' });
-    }
-  }, [candles, signal]);
 
   useEffect(() => {
     fetchAndAnalyze();
@@ -439,11 +404,45 @@ const fetchAndAnalyze = useCallback(async () => {
           </div>
         )}
 
-        {/* Live Chart */}
-        <div style={{ marginBottom:'10px', background:'#050508', border:'1px solid #ffffff08', overflow:'hidden' }}>
-          <div style={{ fontSize:'9px', color:'#333', letterSpacing:'2px', padding:'8px 12px' }}>LIVE CHART • 1M CANDLES</div>
-          <div ref={chartContainerRef} style={{ width:'100%', height:'220px' }}></div>
-        </div>
+        {candles.length > 0 && (() => {
+          const w = 340, h = 160, pad = 8;
+          const highs = candles.map(c => parseFloat(c.high));
+          const lows = candles.map(c => parseFloat(c.low));
+          const minP = Math.min(...lows), maxP = Math.max(...highs);
+          const range = maxP - minP || 0.0001;
+          const cw = Math.max((w - pad*2) / candles.length - 1, 1);
+          const py = p => h - pad - ((p - minP) / range) * (h - pad*2);
+          return (
+            <div style={{ marginBottom:'10px', background:'#050508', border:'1px solid #ffffff08', overflow:'hidden' }}>
+              <div style={{ fontSize:'9px', color:'#333', letterSpacing:'2px', padding:'8px 12px' }}>LIVE CHART • 1M CANDLES</div>
+              <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>
+                {candles.map((c, i) => {
+                  const o = parseFloat(c.open), cl = parseFloat(c.close);
+                  const hi = parseFloat(c.high), lo = parseFloat(c.low);
+                  const x = pad + i * ((w - pad*2) / candles.length);
+                  const color = cl >= o ? '#00FF9D' : '#FF3B3B';
+                  return (
+                    <g key={i}>
+                      <line x1={x+cw/2} y1={py(hi)} x2={x+cw/2} y2={py(lo)} stroke={color} strokeWidth="0.5"/>
+                      <rect x={x} y={Math.min(py(o),py(cl))} width={cw} height={Math.max(Math.abs(py(o)-py(cl)),1)} fill={color}/>
+                    </g>
+                  );
+                })}
+                {signal && signal.signal !== 'WAIT' && [
+                  { p: signal.entry, c:'#ffffff88', l:'E' },
+                  { p: signal.sl, c:'#FF3B3B', l:'SL' },
+                  { p: signal.tp1, c:'#00FF9D', l:'TP1' },
+                  { p: signal.tp2, c:'#00FF9D88', l:'TP2' },
+                ].map(({p,c,l}) => p && p >= minP && p <= maxP ? (
+                  <g key={l}>
+                    <line x1={pad} y1={py(p)} x2={w-pad} y2={py(p)} stroke={c} strokeWidth="0.8" strokeDasharray="3,2"/>
+                    <text x={w-pad-1} y={py(p)-2} fill={c} fontSize="7" textAnchor="end">{l}</text>
+                  </g>
+                ) : null)}
+              </svg>
+            </div>
+          );
+        })()}
 
         {/* Signal Card */}
         <div style={{ ...cardStyle, border: `1px solid ${signalColor}44` }} className={signal ? 'glow-card fade-up' : 'fade-up'}>
