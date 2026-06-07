@@ -16,6 +16,14 @@ const enforcePips = (signal, entry, sl, tp1, tp2, pair) => {
   return { sl, tp1, tp2 };
 };
 
+const getRSILabel = (rsi) => {
+  if (rsi < 30) return `${rsi} (OVERSOLD — strong buy zone)`;
+  if (rsi > 70) return `${rsi} (OVERBOUGHT — strong sell zone)`;
+  if (rsi < 45) return `${rsi} (NEUTRAL leaning bearish)`;
+  if (rsi > 55) return `${rsi} (NEUTRAL leaning bullish)`;
+  return `${rsi} (NEUTRAL — no clear momentum)`;
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -24,6 +32,8 @@ module.exports = async (req, res) => {
 
   const { pair, price, trend1m, trend15m, trend1h, rsi, high, low, closes } = req.body;
   if (!pair || !price) return res.status(400).json({ error: 'Missing data' });
+
+  const rsiLabel = getRSILabel(parseFloat(rsi));
 
   try {
     const response = await axios.post(
@@ -36,22 +46,25 @@ module.exports = async (req, res) => {
           {
             role: 'system',
             content: `You are an expert Forex trading analyst. Respond ONLY in this JSON format:
-{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 65-95,"reason":"max 10 words","action":"Start with OPEN BUY / OPEN SELL / WAIT then one sentence why"}
+{"signal":"BUY or SELL or WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number 65-95,"reason":"max 10 words using REAL data provided","action":"Start with OPEN BUY / OPEN SELL / WAIT then one accurate sentence"}
 
 STRICT RULES:
 - BUY only if: 1H=UPTREND AND 15M=UPTREND AND RSI < 65
 - SELL only if: 1H=DOWNTREND AND 15M=DOWNTREND AND RSI > 35
 - WAIT if timeframes conflict
-- SL must be 10-50 pips from entry. NEVER return sl=10 or any round number unrelated to price
-- TP1 minimum 15 pips, TP2 minimum 25 pips from entry
-- All prices must be close to current price (within 100 pips)`
+- NEVER say RSI is overbought unless RSI > 70. NEVER say oversold unless RSI < 30
+- Your reason must reference the ACTUAL RSI label and trend provided
+- SL must be 10-50 pips from entry. NEVER return sl as a round number like 10
+- TP1 minimum 15 pips, TP2 minimum 25 pips from entry`
           },
           {
             role: 'user',
             content: `Pair: ${pair} | Price: ${price}
 1M: ${trend1m} | 15M: ${trend15m} | 1H: ${trend1h}
-RSI: ${rsi} | High: ${high} | Low: ${low}
-Last 5 closes: ${closes}`
+RSI: ${rsiLabel}
+High: ${high} | Low: ${low}
+Last 5 closes: ${closes}
+Give signal based ONLY on the exact data above. Do not invent conditions.`
           }
         ]
       },
