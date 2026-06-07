@@ -444,7 +444,7 @@ const fetchAndAnalyze = useCallback(async () => {
         {/* Live Chart */}
         <div style={{ marginBottom:'10px', background:'#050508', border:'1px solid #ffffff08', overflow:'hidden' }}>
           <div style={{ fontSize:'9px', color:'#333', letterSpacing:'2px', padding:'8px 12px' }}>LIVE CHART • 1M CANDLES</div>
-          <div ref={chartContainerRef} style={{ width:'100%' }} />
+          <div ref={chartContainerRef} style={{ width:'100%', height:'220px' }}></div>
         </div>
 
         {/* Signal Card */}
