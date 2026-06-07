@@ -92,6 +92,9 @@ export default function App() {
   const [trend, setTrend] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
   const [notifGranted, setNotifGranted] = useState(false);
+  const [signalHistory, setSignalHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('to_signals') || '[]'); } catch { return []; }
+  });
   const [usage, setUsage] = useState(null);
   const [signalsToday, setSignalsToday] = useState(0);
 
@@ -156,6 +159,20 @@ export default function App() {
       });
       setSignal(sigRes.data);
       setSignalsToday(s => s + 1);
+      if (sigRes.data.signal !== 'WAIT') {
+        const newEntry = { id: Date.now(), pair, signal: sigRes.data.signal, entry: sigRes.data.entry, sl: sigRes.data.sl, tp1: sigRes.data.tp1, confidence: sigRes.data.confidence, timestamp: new Date().toISOString(), status: 'open' };
+        setSignalHistory(prev => {
+          const checked = prev.map(s => {
+            if (s.status !== 'open' || s.pair !== pair) return s;
+            if (s.signal === 'BUY') { if (latest >= s.tp1) return {...s, status:'win'}; if (latest <= s.sl) return {...s, status:'loss'}; }
+            else { if (latest <= s.tp1) return {...s, status:'win'}; if (latest >= s.sl) return {...s, status:'loss'}; }
+            return s;
+          });
+          const updated = [newEntry, ...checked].slice(0, 100);
+          localStorage.setItem('to_signals', JSON.stringify(updated));
+          return updated;
+        });
+      }
       if (notifGranted && sigRes.data.signal !== lastSignal && sigRes.data.signal !== 'WAIT') {
         const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
         if ('serviceWorker' in navigator) {
@@ -254,6 +271,12 @@ export default function App() {
         {/* Credits Dashboard */}
         <div style={{ ...cardStyle, marginBottom: '10px' }} className="fade-up">
           <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '12px' }}>API CREDITS DASHBOARD</div>
+          {(() => { const closed = signalHistory.filter(s => s.status !== 'open'); const wins = closed.filter(s => s.status === 'win').length; const wr = closed.length > 0 ? Math.round((wins/closed.length)*100) : null; return wr !== null ? (
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px', padding:'8px', background: wr>=60?'#00FF9D11':'#FF3B3B11', border:`1px solid ${wr>=60?'#00FF9D33':'#FF3B3B33'}` }}>
+              <div style={{ fontSize:'8px', color:'#333', letterSpacing:'1px' }}>WIN RATE <span style={{ fontSize:'9px', color:'#555' }}>({closed.length} signals)</span></div>
+              <div style={{ fontSize:'22px', fontWeight:'700', color: wr>=60?'#00FF9D':'#FF3B3B' }}>{wr}%</div>
+            </div>
+          ) : null; })()}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '8px', color: '#333', letterSpacing: '1px', marginBottom: '4px' }}>USED TODAY</div>
