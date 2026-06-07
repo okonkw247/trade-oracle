@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF'];
@@ -139,9 +139,6 @@ export default function App() {
   return ema;
 };
 
-const chartRef = useRef(null);
-const chartContainerRef = useRef(null);
-const candleSeriesRef = useRef(null);
 const [trend15m, setTrend15m] = useState(null);
   // eslint-disable-next-line
 const [trend1h, setTrend1h] = useState(null);
