@@ -400,41 +400,100 @@ const fetchAndAnalyze = useCallback(async () => {
             ))}
           </div>
         )}
-
         {candles.length > 0 && (() => {
-          const w = 340, h = 160, pad = 8;
+          const W = 360, H = 210;
+          const RPad = 54, BPad = 16, LPad = 4, TPad = 6;
+          const cW = W - LPad - RPad, cH = H - TPad - BPad;
           const highs = candles.map(c => parseFloat(c.high));
           const lows = candles.map(c => parseFloat(c.low));
-          const minP = Math.min(...lows), maxP = Math.max(...highs);
-          const range = maxP - minP || 0.0001;
-          const cw = Math.max((w - pad*2) / candles.length - 1, 1);
-          const py = p => h - pad - ((p - minP) / range) * (h - pad*2);
+          const rawMin = Math.min(...lows), rawMax = Math.max(...highs);
+          const rangePad = (rawMax - rawMin) * 0.15 || 0.0005;
+          const minP = rawMin - rangePad, maxP = rawMax + rangePad;
+          const range = maxP - minP;
+          const py = p => TPad + cH - ((p - minP) / range) * cH;
+          const slotW = cW / candles.length;
+          const bW = Math.max(slotW * 0.65, 1.5);
+          const cx = i => LPad + (i + 0.5) * slotW;
+          const dec = pair && pair.includes('JPY') ? 3 : 5;
+          const levels = 5;
+          const priceTicks = Array.from({length: levels}, (_, i) => minP + (range * i / (levels-1)));
+          const timeStep = Math.max(Math.floor(candles.length / 5), 1);
+          const sigColor = signal && signal.signal === 'BUY' ? '#00FF9D' : '#FF3B3B';
+          const lastIdx = candles.length - 1;
+          const lastLo = parseFloat(candles[lastIdx].low);
+          const lastHi = parseFloat(candles[lastIdx].high);
           return (
-            <div style={{ marginBottom:'10px', background:'#050508', border:'1px solid #ffffff08', overflow:'hidden' }}>
-              <div style={{ fontSize:'9px', color:'#333', letterSpacing:'2px', padding:'8px 12px' }}>LIVE CHART • 1M CANDLES</div>
-              <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>
-                {candles.map((c, i) => {
-                  const o = parseFloat(c.open), cl = parseFloat(c.close);
-                  const hi = parseFloat(c.high), lo = parseFloat(c.low);
-                  const x = pad + i * ((w - pad*2) / candles.length);
-                  const color = cl >= o ? '#00FF9D' : '#FF3B3B';
+            <div style={{ marginBottom:'10px', background:'#050508', border:'1px solid #ffffff08', borderRadius:'2px', overflow:'hidden' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px 2px' }}>
+                <div style={{ fontSize:'8px', color:'#333', letterSpacing:'2px' }}>LIVE CHART • 1M</div>
+                {signal && signal.signal !== 'WAIT' && (
+                  <div style={{ fontSize:'8px', fontWeight:'700', color: sigColor, letterSpacing:'1px' }}>
+                    {signal.signal === 'BUY' ? '▲' : '▼'} {signal.signal} @ {signal.entry}
+                  </div>
+                )}
+              </div>
+              <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:'block' }}>
+                {/* Grid */}
+                {priceTicks.map((p,i) => (
+                  <line key={i} x1={LPad} y1={py(p)} x2={W-RPad} y2={py(p)} stroke="#ffffff05" strokeWidth="1"/>
+                ))}
+                <line x1={W-RPad} y1={TPad} x2={W-RPad} y2={TPad+cH} stroke="#ffffff11" strokeWidth="0.5"/>
+
+                {/* Candles */}
+                {candles.map((c,i) => {
+                  const o=parseFloat(c.open), cl=parseFloat(c.close);
+                  const hi=parseFloat(c.high), lo=parseFloat(c.low);
+                  const x=cx(i), col=cl>=o?'#00FF9D':'#FF3B3B';
+                  const bTop=Math.min(py(o),py(cl)), bH=Math.max(Math.abs(py(o)-py(cl)),1);
                   return (
                     <g key={i}>
-                      <line x1={x+cw/2} y1={py(hi)} x2={x+cw/2} y2={py(lo)} stroke={color} strokeWidth="0.5"/>
-                      <rect x={x} y={Math.min(py(o),py(cl))} width={cw} height={Math.max(Math.abs(py(o)-py(cl)),1)} fill={color}/>
+                      <line x1={x} y1={py(hi)} x2={x} y2={py(lo)} stroke={col} strokeWidth="0.7" opacity="0.9"/>
+                      <rect x={x-bW/2} y={bTop} width={bW} height={bH} fill={col} opacity="0.95"/>
                     </g>
                   );
                 })}
+
+                {/* Signal lines */}
                 {signal && signal.signal !== 'WAIT' && [
-                  { p: signal.entry, c:'#ffffff88', l:'E' },
-                  { p: signal.sl, c:'#FF3B3B', l:'SL' },
-                  { p: signal.tp1, c:'#00FF9D', l:'TP1' },
-                  { p: signal.tp2, c:'#00FF9D88', l:'TP2' },
-                ].map(({p,c,l}) => p && p >= minP && p <= maxP ? (
+                  {p:signal.entry, c:'#ffffff55', l:'ENTRY'},
+                  {p:signal.sl, c:'#FF3B3B', l:'SL'},
+                  {p:signal.tp1, c:'#00FF9D', l:'TP1'},
+                  {p:signal.tp2, c:'#00FF9D77', l:'TP2'},
+                ].map(({p,c,l}) => p && p>=minP && p<=maxP ? (
                   <g key={l}>
-                    <line x1={pad} y1={py(p)} x2={w-pad} y2={py(p)} stroke={c} strokeWidth="0.8" strokeDasharray="3,2"/>
-                    <text x={w-pad-1} y={py(p)-2} fill={c} fontSize="7" textAnchor="end">{l}</text>
+                    <line x1={LPad} y1={py(p)} x2={W-RPad} y2={py(p)} stroke={c} strokeWidth="0.8" strokeDasharray="4,3"/>
+                    <rect x={W-RPad+1} y={py(p)-7} width={RPad-2} height={13} fill="#050508"/>
+                    <text x={W-RPad+3} y={py(p)+3} fill={c} fontSize="7" fontFamily="monospace">{l}</text>
+                    <text x={W-3} y={py(p)+3} fill={c} fontSize="6.5" fontFamily="monospace" textAnchor="end">{typeof p === 'number' ? p.toFixed(dec) : p}</text>
                   </g>
+                ) : null)}
+
+                {/* BUY arrow */}
+                {signal && signal.signal === 'BUY' && (
+                  <g>
+                    <polygon points={`${cx(lastIdx)},${py(lastLo)+4} ${cx(lastIdx)-6},${py(lastLo)+14} ${cx(lastIdx)+6},${py(lastLo)+14}`} fill="#00FF9D" opacity="0.9"/>
+                    <text x={cx(lastIdx)} y={py(lastLo)+24} fill="#00FF9D" fontSize="6.5" textAnchor="middle" fontWeight="bold" fontFamily="monospace">BUY</text>
+                  </g>
+                )}
+
+                {/* SELL arrow */}
+                {signal && signal.signal === 'SELL' && (
+                  <g>
+                    <polygon points={`${cx(lastIdx)},${py(lastHi)-4} ${cx(lastIdx)-6},${py(lastHi)-14} ${cx(lastIdx)+6},${py(lastHi)-14}`} fill="#FF3B3B" opacity="0.9"/>
+                    <text x={cx(lastIdx)} y={py(lastHi)-17} fill="#FF3B3B" fontSize="6.5" textAnchor="middle" fontWeight="bold" fontFamily="monospace">SELL</text>
+                  </g>
+                )}
+
+                {/* Price labels */}
+                {priceTicks.map((p,i) => (
+                  <text key={i} x={W-RPad+3} y={py(p)+3} fill="#444" fontSize="6.5" fontFamily="monospace">{p.toFixed(dec)}</text>
+                ))}
+
+                {/* Time labels */}
+                {candles.map((c,i) => i % timeStep === 0 ? (
+                  <text key={i} x={cx(i)} y={H-2} fill="#2a2a2a" fontSize="6" textAnchor="middle" fontFamily="monospace">
+                    {c.datetime ? c.datetime.split(' ')[1]?.substring(0,5) : ''}
+                  </text>
                 ) : null)}
               </svg>
             </div>
