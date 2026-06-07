@@ -144,6 +144,7 @@ const chartRef = useRef(null);
 const chartContainerRef = useRef(null);
 const candleSeriesRef = useRef(null);
 const [trend15m, setTrend15m] = useState(null);
+  // eslint-disable-next-line
 const [trend1h, setTrend1h] = useState(null);
 const [ema, setEma] = useState(null);
 
@@ -261,6 +262,7 @@ const fetchAndAnalyze = useCallback(async () => {
     })).sort((a, b) => a.time - b.time);
     candleSeriesRef.current.setData(data);
     if (signal && signal.signal !== 'WAIT') {
+              // eslint-disable-next-line
       const color = signal.signal === 'BUY' ? '#00FF9D' : '#FF3B3B';
       candleSeriesRef.current.createPriceLine({ price: signal.entry, color: '#fff', lineWidth: 1, lineStyle: 2, title: 'ENTRY' });
       candleSeriesRef.current.createPriceLine({ price: signal.sl, color: '#FF3B3B', lineWidth: 1, lineStyle: 2, title: 'SL' });
