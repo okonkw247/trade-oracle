@@ -146,7 +146,6 @@ const candleSeriesRef = useRef(null);
 const [trend15m, setTrend15m] = useState(null);
   // eslint-disable-next-line
 const [trend1h, setTrend1h] = useState(null);
-const [ema, setEma] = useState(null);
 
 const fetchAndAnalyze = useCallback(async () => {
     setError(null);
@@ -179,7 +178,6 @@ const fetchAndAnalyze = useCallback(async () => {
       const ema10_1h = calculateEMA(closes1h, 10);
       setTrend15m(t15m);
       setTrend1h(t1h);
-      setEma(ema10_1h);
 
       setLoading(true);
       const sigRes = await axios.post(`${API}/api/signal`, {
@@ -262,8 +260,6 @@ const fetchAndAnalyze = useCallback(async () => {
     })).sort((a, b) => a.time - b.time);
     candleSeriesRef.current.setData(data);
     if (signal && signal.signal !== 'WAIT') {
-              // eslint-disable-next-line
-      const color = signal.signal === 'BUY' ? '#00FF9D' : '#FF3B3B';
       candleSeriesRef.current.createPriceLine({ price: signal.entry, color: '#fff', lineWidth: 1, lineStyle: 2, title: 'ENTRY' });
       candleSeriesRef.current.createPriceLine({ price: signal.sl, color: '#FF3B3B', lineWidth: 1, lineStyle: 2, title: 'SL' });
       candleSeriesRef.current.createPriceLine({ price: signal.tp1, color: '#00FF9D', lineWidth: 1, lineStyle: 2, title: 'TP1' });
