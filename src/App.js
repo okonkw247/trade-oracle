@@ -285,7 +285,7 @@ const fetchAndAnalyze = useCallback(async () => {
       setErrorCount(c => { const n = c + 1; if (n >= 2) setError("FEED ERROR — RETRYING"); return n; }); if (errorCount >= 2) setError("FEED ERROR — RETRYING");
     }
     setLoading(false);
-  }, [pair, price, notifGranted, lastSignal]);
+  }, [pair, price, notifGranted, lastSignal, errorCount]);
 
   useEffect(() => {
     setSignal(null); setPrice(null); setRsi(null); setCandles([]); setTrend(null);
