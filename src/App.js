@@ -143,6 +143,22 @@ const [trend15m, setTrend15m] = useState(null);
   // eslint-disable-next-line
 const [trend1h, setTrend1h] = useState(null);
 
+const playAlert = (type) => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = type === 'BUY' ? 880 : 440;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+};
+
 const fetchAndAnalyze = useCallback(async () => {
     setError(null);
     try {
@@ -189,6 +205,9 @@ const fetchAndAnalyze = useCallback(async () => {
       });
       setSignal(sigRes.data);
       setSignalsToday(s => s + 1);
+      if (sigRes.data.signal !== 'WAIT' && sigRes.data.signal !== lastSignal && sigRes.data.confidence >= 75) {
+        playAlert(sigRes.data.signal);
+      }
       if (sigRes.data.signal !== 'WAIT') {
         const newEntry = { id: Date.now(), pair, signal: sigRes.data.signal, entry: sigRes.data.entry, sl: sigRes.data.sl, tp1: sigRes.data.tp1, confidence: sigRes.data.confidence, timestamp: new Date().toISOString(), status: 'open' };
         setSignalHistory(prev => {
@@ -546,6 +565,12 @@ const fetchAndAnalyze = useCallback(async () => {
                 <div style={{ fontSize: '13px', color: '#fff', lineHeight: '1.6', fontWeight: '600' }}>{signal.action}</div>
               </div>
             )}
+            {signal.confidence < 75 && (
+              <div style={{ margin: '12px', padding: '10px', background: '#FF9B0011', border: '1px solid #FF9B0044', borderLeft: '3px solid #FF9B00' }}>
+                <div style={{ fontSize: '9px', color: '#FF9B00', letterSpacing: '2px', marginBottom: '4px' }}>⚠ WEAK SIGNAL</div>
+                <div style={{ fontSize: '11px', color: '#FF9B00' }}>Confidence {signal.confidence}% — Consider skipping this trade</div>
+              </div>
+            )}
             <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '12px', fontSize: '10px', color: '#444', lineHeight: '1.5' }}>📊 {signal.reason}</div>
             </>
           ) : (
@@ -564,6 +589,31 @@ const fetchAndAnalyze = useCallback(async () => {
         }}>
           {loading ? '⟳ ANALYZING...' : '⟳ REFRESH SIGNAL'}
         </button>
+
+        {/* Signal History */}
+        {signalHistory.filter(s => s.signal !== 'WAIT').length > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '10px' }}>SIGNAL HISTORY</div>
+            {signalHistory.filter(s => s.signal !== 'WAIT').slice(0, 10).map(s => (
+              <div key={s.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', marginBottom:'4px', background:'#0a0a0f', border:`1px solid ${s.signal==='BUY'?'#00FF9D22':'#FF3B3B22'}`, borderLeft:`3px solid ${s.signal==='BUY'?'#00FF9D':'#FF3B3B'}` }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                  <div style={{ fontSize:'14px', fontWeight:'700', color: s.signal==='BUY'?'#00FF9D':'#FF3B3B', fontFamily:"'Bebas Neue', sans-serif", letterSpacing:'2px' }}>{s.signal}</div>
+                  <div>
+                    <div style={{ fontSize:'9px', color:'#fff', letterSpacing:'1px' }}>{s.pair}</div>
+                    <div style={{ fontSize:'8px', color:'#333' }}>{new Date(s.timestamp).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontSize:'10px', color:'#555' }}>@ {s.entry}</div>
+                  <div style={{ fontSize:'9px', color: s.confidence>=75?'#00FF9D':'#FF9B00' }}>{s.confidence}% conf</div>
+                  <div style={{ fontSize:'8px', color: s.status==='win'?'#00FF9D':s.status==='loss'?'#FF3B3B':'#333' }}>
+                    {s.status==='win'?'✓ WIN':s.status==='loss'?'✗ LOSS':'● OPEN'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ textAlign: 'center', fontSize: '8px', color: '#111', letterSpacing: '2px', marginBottom: '20px' }}>
           TRADE ORACLE • AI SIGNALS • NOT FINANCIAL ADVICE
