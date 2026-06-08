@@ -159,6 +159,26 @@ const playAlert = (type) => {
   } catch(e) {}
 };
 
+const [commentary, setCommentary] = useState('');
+  const [sentiment, setSentiment] = useState(null);
+  const [showRiskCalc, setShowRiskCalc] = useState(false);
+  const [riskBalance, setRiskBalance] = useState('1000');
+  const [riskPercent, setRiskPercent] = useState('2');
+
+  const fetchCommentary = async (pair, price, trend1m, trend15m, trend1h, rsi, signal, confidence) => {
+    try {
+      const res = await axios.post(`${API}/api/commentary`, { pair, price, trend1m, trend15m, trend1h, rsi, signal, confidence });
+      if (res.data.commentary) setCommentary(res.data.commentary);
+    } catch(e) {}
+  };
+
+  const fetchSentiment = async (pair) => {
+    try {
+      const res = await axios.get(`${API}/api/sentiment?pair=${encodeURIComponent(pair)}`);
+      if (res.data.sentiment) setSentiment(res.data);
+    } catch(e) {}
+  };
+
 const fetchAndAnalyze = useCallback(async () => {
     setError(null);
     try {
@@ -205,6 +225,7 @@ const fetchAndAnalyze = useCallback(async () => {
       });
       setSignal(sigRes.data);
       setSignalsToday(s => s + 1);
+      fetchCommentary(pair, latest.toFixed(decimals), trendDir, t15m, t1h, rsiVal, sigRes.data.signal, sigRes.data.confidence);
       if (sigRes.data.signal !== 'WAIT' && sigRes.data.signal !== lastSignal && sigRes.data.confidence >= 75) {
         playAlert(sigRes.data.signal);
       }
@@ -244,6 +265,8 @@ const fetchAndAnalyze = useCallback(async () => {
 
   useEffect(() => {
     setSignal(null); setPrice(null); setRsi(null); setCandles([]); setTrend(null);
+    setCommentary(''); setSentiment(null);
+    fetchSentiment(pair);
   }, [pair]);
 
 
@@ -589,6 +612,90 @@ const fetchAndAnalyze = useCallback(async () => {
         }}>
           {loading ? '⟳ ANALYZING...' : '⟳ REFRESH SIGNAL'}
         </button>
+
+        {/* AI Market Commentary */}
+        {commentary ? (
+          <div style={{ marginBottom:'10px', padding:'14px', background:'#0a0a0f', border:'1px solid #ffffff08', borderLeft:'3px solid #00FF9D' }}>
+            <div style={{ fontSize:'8px', color:'#00FF9D', letterSpacing:'2px', marginBottom:'8px' }}>🧠 AI MARKET BRIEF</div>
+            <div style={{ fontSize:'12px', color:'#aaa', lineHeight:'1.7' }}>{commentary}</div>
+          </div>
+        ) : signal && (
+          <div style={{ marginBottom:'10px', padding:'12px', background:'#0a0a0f', border:'1px solid #ffffff08' }}>
+            <div style={{ fontSize:'8px', color:'#333', letterSpacing:'2px' }}>🧠 AI MARKET BRIEF</div>
+            <div style={{ fontSize:'10px', color:'#333', marginTop:'6px' }}>Generating commentary...</div>
+          </div>
+        )}
+
+        {/* News Sentiment */}
+        {sentiment && (
+          <div style={{ marginBottom:'10px', padding:'14px', background:'#0a0a0f', border:`1px solid ${sentiment.sentiment==='BULLISH'?'#00FF9D33':sentiment.sentiment==='BEARISH'?'#FF3B3B33':'#ffffff11'}` }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' }}>
+              <div style={{ fontSize:'8px', color:'#333', letterSpacing:'2px' }}>📰 MARKET SENTIMENT</div>
+              <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                <div style={{ fontSize:'10px', fontWeight:'700', color: sentiment.sentiment==='BULLISH'?'#00FF9D':sentiment.sentiment==='BEARISH'?'#FF3B3B':'#888' }}>
+                  {sentiment.sentiment==='BULLISH'?'▲':'sentiment.sentiment'==='BEARISH'?'▼':'●'} {sentiment.sentiment}
+                </div>
+                <div style={{ fontSize:'18px', fontWeight:'700', color: sentiment.score>=6?'#00FF9D':sentiment.score<=4?'#FF3B3B':'#888' }}>{sentiment.score}/10</div>
+              </div>
+            </div>
+            <div style={{ fontSize:'10px', color:'#555', marginBottom:'8px' }}>{sentiment.summary}</div>
+            {sentiment.factors && sentiment.factors.map((f,i) => (
+              <div key={i} style={{ fontSize:'9px', color:'#333', marginBottom:'3px' }}>• {f}</div>
+            ))}
+          </div>
+        )}
+
+        {/* Risk Calculator */}
+        <div style={{ marginBottom:'10px' }}>
+          <button onClick={() => setShowRiskCalc(!showRiskCalc)} style={{ width:'100%', padding:'12px', background:'transparent', border:'1px solid #ffffff11', color:'#555', fontSize:'10px', fontFamily:"'JetBrains Mono', monospace", cursor:'pointer', letterSpacing:'2px', textAlign:'left' }}>
+            📐 RISK CALCULATOR {showRiskCalc ? '▲' : '▼'}
+          </button>
+          {showRiskCalc && signal && signal.signal !== 'WAIT' && (
+            <div style={{ padding:'14px', background:'#0a0a0f', border:'1px solid #ffffff08', borderTop:'none' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'14px' }}>
+                <div>
+                  <div style={{ fontSize:'8px', color:'#333', letterSpacing:'1px', marginBottom:'6px' }}>ACCOUNT BALANCE ($)</div>
+                  <input value={riskBalance} onChange={e => setRiskBalance(e.target.value)} style={{ width:'100%', background:'#050508', border:'1px solid #ffffff11', color:'#fff', padding:'8px', fontSize:'12px', fontFamily:"'JetBrains Mono', monospace", boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize:'8px', color:'#333', letterSpacing:'1px', marginBottom:'6px' }}>RISK %</div>
+                  <input value={riskPercent} onChange={e => setRiskPercent(e.target.value)} style={{ width:'100%', background:'#050508', border:'1px solid #ffffff11', color:'#fff', padding:'8px', fontSize:'12px', fontFamily:"'JetBrains Mono', monospace", boxSizing:'border-box' }} />
+                </div>
+              </div>
+              {(() => {
+                const bal = parseFloat(riskBalance) || 0;
+                const rsk = parseFloat(riskPercent) || 0;
+                const pip = pair.includes('JPY') ? 0.01 : 0.0001;
+                const slPips = signal.sl ? Math.abs(signal.entry - signal.sl) / pip : 10;
+                const riskAmt = bal * (rsk / 100);
+                const pipVal = 10;
+                const lotSize = riskAmt / (slPips * pipVal);
+                const maxLoss = riskAmt;
+                const tp1Profit = (Math.abs(signal.tp1 - signal.entry) / pip) * pipVal * lotSize;
+                return (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1px', background:'#ffffff08' }}>
+                    {[
+                      { label:'LOT SIZE', value: lotSize.toFixed(2), color:'#00FF9D' },
+                      { label:'MAX LOSS', value:`$${maxLoss.toFixed(2)}`, color:'#FF3B3B' },
+                      { label:'SL PIPS', value: slPips.toFixed(1), color:'#fff' },
+                      { label:'TP1 PROFIT', value:`$${tp1Profit.toFixed(2)}`, color:'#00FF9D' },
+                    ].map(item => (
+                      <div key={item.label} style={{ background:'#050508', padding:'10px' }}>
+                        <div style={{ fontSize:'8px', color:'#333', letterSpacing:'1px', marginBottom:'4px' }}>{item.label}</div>
+                        <div style={{ fontSize:'16px', fontWeight:'700', color:item.color }}>{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+          {showRiskCalc && (!signal || signal.signal === 'WAIT') && (
+            <div style={{ padding:'12px', background:'#0a0a0f', border:'1px solid #ffffff08', borderTop:'none', fontSize:'10px', color:'#333', textAlign:'center' }}>
+              Waiting for active signal to calculate risk...
+            </div>
+          )}
+        </div>
 
         {/* Signal History */}
         {signalHistory.filter(s => s.signal !== 'WAIT').length > 0 && (
