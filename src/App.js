@@ -280,6 +280,22 @@ const fetchAndAnalyze = useCallback(async () => {
     return () => clearInterval(interval);
   }, [fetchAndAnalyze]);
 
+  useEffect(() => {
+    const pollCandles = async () => {
+      try {
+        const res = await axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}`);
+        if (!res.data.values) return;
+        const vals = res.data.values.reverse();
+        setCandles(vals);
+        const latest = parseFloat(vals[vals.length - 1].close);
+        setPrevPrice(p => p);
+        setPrice(latest);
+      } catch(e) {}
+    };
+    const ticker = setInterval(pollCandles, 5000);
+    return () => clearInterval(ticker);
+  }, [pair]);
+
   const signalColor = signal?.signal === 'BUY' ? '#00FF9D' : signal?.signal === 'SELL' ? '#FF3B3B' : '#666';
   const priceUp = price > prevPrice;
   const decimals = isJPY(pair) ? 3 : 5;
