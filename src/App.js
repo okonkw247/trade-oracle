@@ -282,7 +282,7 @@ const fetchAndAnalyze = useCallback(async () => {
         setLastSignal(sigRes.data.signal); setErrorCount(0); setError(null);
       }
     } catch (err) {
-      setErrorCount(c => { const n = c + 1; if (n >= 2) setError('FEED ERROR — RETRYING'); return n; });
+      setErrorCount(c => { const n = c + 1; if (n >= 2) setError("FEED ERROR — RETRYING"); return n; }); if (errorCount >= 2) setError("FEED ERROR — RETRYING");
     }
     setLoading(false);
   }, [pair, price, notifGranted, lastSignal]);
