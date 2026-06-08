@@ -32,11 +32,31 @@ const GlobalStyles = () => (
   `}</style>
 );
 
+const STEPS = [
+  'CONNECTING TO MARKET FEEDS...',
+  'FETCHING LIVE PRICES...',
+  'ANALYSING TIMEFRAMES...',
+  'CALIBRATING AI ENGINE...',
+  'LOADING DASHBOARD...',
+];
+
 const SplashScreen = ({ onDone }) => {
+  const [step, setStep] = useState(0);
+  const [done, setDone] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(onDone, 3000);
-    return () => clearTimeout(timer);
-  }, [onDone]);
+    const interval = setInterval(() => {
+      setStep(s => {
+        if (s >= STEPS.length - 1) { clearInterval(interval); setDone(true); return s; }
+        return s + 1;
+      });
+    }, 550);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (done) { const t = setTimeout(onDone, 400); return () => clearTimeout(t); }
+  }, [done, onDone]);
 
   return (
     <div style={{
@@ -69,7 +89,7 @@ const SplashScreen = ({ onDone }) => {
         <div style={{ fontSize: '10px', color: '#00FF9D88', letterSpacing: '6px', animation: 'textFade 0.8s ease 1s forwards', opacity: 0 }}>AI FOREX SIGNALS</div>
       </div>
       <div style={{ width: '200px', marginTop: '40px' }}>
-        <div style={{ fontSize: '9px', color: '#333', letterSpacing: '2px', marginBottom: '8px', textAlign: 'center' }}>INITIALIZING...</div>
+        <div style={{ fontSize: "9px", color: "#00FF9D", letterSpacing: "2px", marginBottom: "8px", textAlign: "center" }}>{STEPS[step]}</div>
         <div style={{ background: '#0a0a0f', height: '2px', overflow: 'hidden' }}>
           <div style={{ height: '100%', background: '#00FF9D', animation: 'progressFill 2.5s ease forwards', width: '0%' }} />
         </div>
@@ -89,6 +109,7 @@ export default function App() {
   const [candles, setCandles] = useState([]);
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
+  const [errorCount, setErrorCount] = useState(0);
   const [trend, setTrend] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
   const [notifGranted, setNotifGranted] = useState(false);
@@ -258,10 +279,10 @@ const fetchAndAnalyze = useCallback(async () => {
             });
           });
         }
-        setLastSignal(sigRes.data.signal);
+        setLastSignal(sigRes.data.signal); setErrorCount(0); setError(null);
       }
     } catch (err) {
-      setError('FEED ERROR — RETRYING');
+      setErrorCount(c => { const n = c + 1; if (n >= 2) setError('FEED ERROR — RETRYING'); return n; });
     }
     setLoading(false);
   }, [pair, price, notifGranted, lastSignal]);
@@ -616,7 +637,7 @@ const fetchAndAnalyze = useCallback(async () => {
             <div style={{ paddingLeft: '12px', paddingRight: '12px', marginBottom: '12px', fontSize: '10px', color: '#444', lineHeight: '1.5' }}>📊 {signal.reason}</div>
             </>
           ) : (
-            <div style={{ color: '#222', fontSize: '12px', paddingLeft: '12px', letterSpacing: '1px' }}>INITIALIZING...</div>
+            <div style={{ color: '#222', fontSize: '12px', paddingLeft: '12px', letterSpacing: '1px' }}>CONNECTING TO MARKET FEEDS...</div>
           )}
         </div>
 
