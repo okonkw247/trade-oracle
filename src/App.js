@@ -206,7 +206,6 @@ const fetchAndAnalyze = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}`);
       if (!res.data.values) { setMarketClosed(true); setLoading(false); return; }
-      const vals = res.data.values.reverse();
       const vals = res.data.values.reverse(); setMarketClosed(false);
       const latest = closes[closes.length - 1];
       setPrevPrice(price);
