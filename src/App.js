@@ -110,6 +110,7 @@ export default function App() {
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
   const [errorCount, setErrorCount] = useState(0);
+  const [marketClosed, setMarketClosed] = useState(false);
   const [trend, setTrend] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
   const [notifGranted, setNotifGranted] = useState(false);
@@ -204,9 +205,9 @@ const fetchAndAnalyze = useCallback(async () => {
     setError(null);
     try {
       const res = await axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}`);
-      if (!res.data.values) return;
+      if (!res.data.values) { setMarketClosed(true); setLoading(false); return; }
       const vals = res.data.values.reverse();
-      const closes = vals.map(c => parseFloat(c.close));
+      const vals = res.data.values.reverse(); setMarketClosed(false);
       const latest = closes[closes.length - 1];
       setPrevPrice(price);
       setPrice(latest);
@@ -357,7 +358,7 @@ const fetchAndAnalyze = useCallback(async () => {
       <div style={{ background: '#00FF9D', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: '10px', color: '#000', fontWeight: '700', letterSpacing: '3px' }}>TRADE ORACLE v1.0</div>
         <div style={{ fontSize: '10px', color: '#000', fontWeight: '600' }}>
-          {lastUpdated ? `⟳ ${lastUpdated}` : 'CONNECTING...'}
+          {marketClosed ? 'MARKET CLOSED' : lastUpdated ? `⟳ ${lastUpdated}` : 'CONNECTING...'}
         </div>
       </div>
 
@@ -589,9 +590,15 @@ const fetchAndAnalyze = useCallback(async () => {
           <div style={{ fontSize: '9px', color: '#333', letterSpacing: '3px', marginBottom: '16px', paddingLeft: '12px' }}>AI SIGNAL ENGINE</div>
 
           {loading ? (
-            <div style={{ color: '#00FF9D', fontSize: '12px', paddingLeft: '12px', letterSpacing: '2px' }} className="pulse">⟳ ANALYZING MARKET DATA...</div>
+            <div style={{ color: "#00FF9D", fontSize: "12px", paddingLeft: "12px", letterSpacing: "2px" }} className="pulse">⟳ ANALYZING MARKET DATA...</div>
+          ) : marketClosed ? (
+            <div style={{ paddingLeft: "12px", paddingBottom: "12px" }}>
+              <div style={{ fontSize: "28px", fontWeight: "700", color: "#FF9B00", fontFamily: "Bebas Neue, sans-serif", letterSpacing: "4px", marginBottom: "8px" }}>MARKET CLOSED</div>
+              <div style={{ fontSize: "11px", color: "#555", lineHeight: "1.6" }}>Forex markets are closed.</div>
+              <div style={{ fontSize: "11px", color: "#555" }}>Reopens Sunday 5:00 PM EST.</div>
+            </div>
           ) : error ? (
-            <div style={{ color: '#FF3B3B', fontSize: '12px', paddingLeft: '12px' }}>⚠ {error}</div>
+            <div style={{ color: "#FF3B3B", fontSize: "12px", paddingLeft: "12px" }}>⚠ {error}</div>
           ) : signal ? (
             <>
               <div style={{ paddingLeft: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
