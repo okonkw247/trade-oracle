@@ -206,8 +206,10 @@ const fetchAndAnalyze = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/api/price?pair=${encodeURIComponent(pair)}`);
       if (!res.data.values) { setMarketClosed(true); setLoading(false); return; }
-      const vals = res.data.values.reverse(); setMarketClosed(false);
+      setMarketClosed(false);
+      const vals = res.data.values.reverse();
       const closes = vals.map(c => parseFloat(c.close));
+      const latest = closes[closes.length - 1];
       setPrevPrice(price);
       setPrice(latest);
       setCandles(vals);
@@ -268,21 +270,21 @@ const fetchAndAnalyze = useCallback(async () => {
         });
       }
       if (notifGranted && sigRes.data.signal !== lastSignal && sigRes.data.signal !== 'WAIT') {
-        const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
         if ('serviceWorker' in navigator) {
+          const emoji = sigRes.data.signal === 'BUY' ? '🟢' : '🔴';
           navigator.serviceWorker.ready.then(reg => {
             reg.showNotification(`${emoji} ${sigRes.data.signal} ${pair}`, {
               body: `Entry: ${sigRes.data.entry} | SL: ${sigRes.data.sl} | TP: ${sigRes.data.tp1} | ${sigRes.data.confidence}% confidence`,
-              icon: '/logo192.png',
-              badge: '/logo192.png',
-              vibrate: [200, 100, 200],
+              icon: '/logo192.png', badge: '/logo192.png', vibrate: [200, 100, 200],
             });
           });
         }
-        setLastSignal(sigRes.data.signal); setErrorCount(0); setError(null);
       }
+      setLastSignal(sigRes.data.signal);
+      setErrorCount(0);
+      setError(null);
     } catch (err) {
-      setErrorCount(c => { const n = c + 1; if (n >= 2) setError("FEED ERROR — RETRYING"); return n; }); if (errorCount >= 2) setError("FEED ERROR — RETRYING");
+      setErrorCount(c => { const n = c + 1; if (n >= 2) setError('FEED ERROR — RETRYING'); return n; });
     }
     setLoading(false);
   }, [pair, price, notifGranted, lastSignal, errorCount]);
