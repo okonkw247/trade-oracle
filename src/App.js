@@ -303,7 +303,7 @@ export default function App() {
         setPrice(latest);
       } catch(e) {}
     };
-    const ticker = setInterval(pollCandles, 5000);
+    const ticker = setInterval(pollCandles, 30000);
     return () => clearInterval(ticker);
   }, [pair]);
 
