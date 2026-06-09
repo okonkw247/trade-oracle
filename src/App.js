@@ -109,7 +109,6 @@ export default function App() {
   const [candles, setCandles] = useState([]);
   const [rsi, setRsi] = useState(null);
   const [error, setError] = useState(null);
-  const [errorCount, setErrorCount] = useState(0);
   const [marketClosed, setMarketClosed] = useState(false);
   const [trend, setTrend] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
@@ -281,10 +280,9 @@ const fetchAndAnalyze = useCallback(async () => {
         }
       }
       setLastSignal(sigRes.data.signal);
-      setErrorCount(0);
       setError(null);
     } catch (err) {
-      setErrorCount(c => { const n = c + 1; if (n >= 2) setError('FEED ERROR — RETRYING'); return n; });
+      setError('FEED ERROR — RETRYING');
     }
     setLoading(false);
   }, [pair, price, notifGranted, lastSignal]);
