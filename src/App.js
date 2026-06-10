@@ -10,7 +10,7 @@ const G_LIGHT = '#E8FBF3';
 const G_MID = '#00C97F22';
 
 const GlobalStyles = () => (
-  <style>{\`
+  <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #F7F8FA; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
@@ -28,7 +28,7 @@ const GlobalStyles = () => (
     .slide-in { animation: slideIn 0.4s ease forwards; }
     input:focus { outline: none; }
     button:active { transform: scale(0.98); }
-  \`}</style>
+  `}</style>
 );
 
 const STEPS = [
