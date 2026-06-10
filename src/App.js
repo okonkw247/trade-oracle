@@ -7,7 +7,6 @@ const isJPY = (pair) => pair.includes('JPY');
 
 const G = '#00C97F';
 const G_LIGHT = '#E8FBF3';
-const G_MID = '#00C97F22';
 
 const GlobalStyles = () => (
   <style>{`
