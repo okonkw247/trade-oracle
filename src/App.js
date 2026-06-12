@@ -88,10 +88,10 @@ const SplashScreen = ({ onDone }) => {
   );
 };
 
-const Badge = ({ label, up }) => (
+const Badge = ({ label, up, th: bth = { card: '#fff', border: '#E5E7EB' } }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px',
+    background: th.card, border: `1px solid ${th.border}`, borderRadius: '10px',
     padding: '10px 8px', flex: 1,
   }}>
     <span style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '500', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</span>
@@ -103,6 +103,7 @@ const Badge = ({ label, up }) => (
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [dark, setDark] = useState(() => localStorage.getItem('to_dark') === 'true');
   const [pair, setPair] = useState('EUR/USD');
   const [price, setPrice] = useState(null);
   const [prevPrice, setPrevPrice] = useState(null);
@@ -310,6 +311,15 @@ export default function App() {
   const priceUp = price > prevPrice;
   const signalColor = signal?.signal === 'BUY' ? G : signal?.signal === 'SELL' ? '#EF4444' : '#6B7280';
   const signalBg = signal?.signal === 'BUY' ? G_LIGHT : signal?.signal === 'SELL' ? '#FEF2F2' : '#F9FAFB';
+  const toggleDark = () => setDark(d => { const n = df -h /sdcard; localStorage.setItem('to_dark', String(n)); return n; });
+  const th = {
+    bg: dark ? '#0F1117' : '#F7F8FA',
+    card: dark ? '#1A1D27' : '#ffffff',
+    border: dark ? '#2A2D3E' : '#E5E7EB',
+    text: dark ? '#F9FAFB' : '#111111',
+    sub: dark ? '#6B7280' : '#6B7280',
+    input: dark ? '#0F1117' : '#F9FAFB',
+  };
 
   const getRSIInfo = () => {
     if (!rsi) return { label: 'N/A', color: '#9CA3AF' };
@@ -334,15 +344,15 @@ export default function App() {
   );
 
   return (
-    <div style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Inter', sans-serif", maxWidth: '480px', margin: '0 auto' }}>
+    <div style={{ background: th.bg, minHeight: '100vh', fontFamily: "'Inter', sans-serif", maxWidth: '480px', margin: '0 auto' }}>
       <GlobalStyles />
 
-      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+      <div style={{ background: th.card, borderBottom: `1px solid ${th.border}`, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', background: G, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#fff', fontSize: '14px' }}>◈</span>
           </div>
-          <span style={{ fontSize: '15px', fontWeight: '700', color: '#111', letterSpacing: '-0.3px' }}>Trade Oracle</span>
+          <span style={{ fontSize: '15px', fontWeight: '700', color: th.text, letterSpacing: '-0.3px' }}>Trade Oracle</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: marketClosed ? '#EF4444' : price ? G : '#F59E0B' }} className={price && !marketClosed ? 'pulse' : ''} />
@@ -350,6 +360,9 @@ export default function App() {
             {marketClosed ? 'Market Closed' : lastUpdated ? `Updated ${lastUpdated}` : 'Connecting...'}
           </span>
         </div>
+        <button onClick={toggleDark} style={{ background: dark ? '#2A2D3E' : '#F3F4F6', border: 'none', borderRadius: '20px', width: '42px', height: '24px', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+          <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: dark ? G : '#fff', position: 'absolute', top: '3px', left: dark ? '21px' : '3px', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+        </button>
       </div>
 
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -370,14 +383,14 @@ export default function App() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px' }} className="fade-up">
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }} className="fade-up">
             <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>Live Price</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: price ? (priceUp ? G : '#EF4444') : '#D1D5DB', fontFamily: "'DM Mono', monospace", letterSpacing: '-0.5px' }}>
               {price ? price.toFixed(decimals) : '-.-----'}
             </div>
             <div style={{ fontSize: '13px', color: priceUp ? G : '#EF4444', marginTop: '2px' }}>{price ? (priceUp ? '▲' : '▼') : ''}</div>
           </div>
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px' }} className="fade-up">
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }} className="fade-up">
             <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>RSI (14)</div>
             <div style={{ fontSize: '16px', fontWeight: '700', color: rsiInfo.color, fontFamily: "'DM Mono', monospace" }}>{rsiInfo.label}</div>
             <div style={{ fontSize: '10px', color: '#D1D5DB', marginTop: '4px' }}>1min candles</div>
@@ -386,9 +399,9 @@ export default function App() {
 
         {(trend || trend15m || trend1h) && (
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Badge label="1M" up={trend === 'UPTREND' ? true : trend === 'DOWNTREND' ? false : null} />
-            <Badge label="15M" up={trend15m === 'UPTREND' ? true : trend15m === 'DOWNTREND' ? false : null} />
-            <Badge label="1H" up={trend1h === 'UPTREND' ? true : trend1h === 'DOWNTREND' ? false : null} />
+            <Badge th={th} label="1M" up={trend === 'UPTREND' ? true : trend === 'DOWNTREND' ? false : null} />
+            <Badge th={th} label="15M" up={trend15m === 'UPTREND' ? true : trend15m === 'DOWNTREND' ? false : null} />
+            <Badge th={th} label="1H" up={trend1h === 'UPTREND' ? true : trend1h === 'DOWNTREND' ? false : null} />
           </div>
         )}
 
@@ -411,7 +424,7 @@ export default function App() {
           const timeStep = Math.max(Math.floor(candles.length / 5), 1);
           const lastIdx = candles.length - 1;
           return (
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px 4px' }}>
                 <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Live Chart · 1M</span>
                 {signal && signal.signal !== 'WAIT' && (
@@ -466,7 +479,7 @@ export default function App() {
           );
         })()}
 
-        <div style={{ background: signal ? signalBg : '#fff', border: `1px solid ${signal ? signalColor + '33' : '#E5E7EB'}`, borderRadius: '12px', padding: '16px', borderLeft: `3px solid ${signalColor}` }} className="fade-up">
+        <div style={{ background: signal ? (dark ? (signal.signal==='BUY' ? '#0D2B1F' : signal.signal==='SELL' ? '#2B0D0D' : '#1A1D27') : signalBg) : th.card, border: `1px solid ${signal ? signalColor + '33' : '#E5E7EB'}`, borderRadius: '12px', padding: '16px', borderLeft: `3px solid ${signalColor}` }} className="fade-up">
           <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '12px' }}>AI Signal Engine</div>
 
           {loading ? (
@@ -502,7 +515,7 @@ export default function App() {
                   { label: 'Take Profit 1', value: signal.tp1?.toFixed(decimals), color: G },
                   { label: 'Take Profit 2', value: signal.tp2?.toFixed(decimals), color: G },
                 ].map(item => (
-                  <div key={item.label} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px' }}>
+                  <div key={item.label} style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '10px' }}>
                     <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>{item.label}</div>
                     <div style={{ fontSize: '15px', fontWeight: '700', color: item.color, fontFamily: "'DM Mono', monospace" }}>{item.value || '—'}</div>
                   </div>
@@ -550,7 +563,7 @@ export default function App() {
         </button>
 
         {candles.length > 0 && (
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
             <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '10px' }}>Market Overview</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
               {[
@@ -569,14 +582,14 @@ export default function App() {
         )}
 
         {commentary && (
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
             <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '8px' }}>🧠 AI Market Brief</div>
             <p style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6' }}>{commentary}</p>
           </div>
         )}
 
         {sentiment && (
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Market Sentiment</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -593,9 +606,9 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
           <button onClick={() => setShowRiskCalc(!showRiskCalc)} style={{
-            width: '100%', padding: '14px', background: 'transparent', border: 'none',
+            width: '100%', padding: '14px', background: th.card, border: 'none',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             cursor: 'pointer', fontFamily: "'Inter', sans-serif",
           }}>
@@ -614,7 +627,7 @@ export default function App() {
                     <input value={f.val} onChange={e => f.set(e.target.value)} style={{
                       width: '100%', border: '1px solid #E5E7EB', borderRadius: '6px',
                       padding: '8px 10px', fontSize: '13px', fontFamily: "'DM Mono', monospace",
-                      color: '#111', background: '#F9FAFB',
+                      color: th.text, background: th.input,
                     }} />
                   </div>
                 ))}
@@ -635,7 +648,7 @@ export default function App() {
                       { label: 'SL Pips', value: slPips.toFixed(1), color: '#111' },
                       { label: 'TP1 Profit', value: '$' + tp1Profit.toFixed(2), color: G },
                     ].map(item => (
-                      <div key={item.label} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px' }}>
+                      <div key={item.label} style={{ background: th.input, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '10px' }}>
                         <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '3px' }}>{item.label}</div>
                         <div style={{ fontSize: '16px', fontWeight: '700', color: item.color, fontFamily: "'DM Mono', monospace" }}>{item.value}</div>
                       </div>
@@ -658,7 +671,7 @@ export default function App() {
             { label: 'Credits Used', value: creditsUsed, color: creditsPercent > 80 ? '#EF4444' : '#111' },
             { label: 'Signals Today', value: signalsToday, color: G },
           ].map(item => (
-            <div key={item.label} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+            <div key={item.label} style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>{item.label}</div>
               <div style={{ fontSize: '20px', fontWeight: '700', color: item.color, fontFamily: "'DM Mono', monospace" }}>{item.value}</div>
             </div>
@@ -672,7 +685,7 @@ export default function App() {
               <div key={s.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 12px', marginBottom: '6px',
-                background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px',
+                background: th.card, border: `1px solid ${th.border}`, borderRadius: '10px',
                 borderLeft: `3px solid ${s.signal==='BUY' ? G : '#EF4444'}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -694,7 +707,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ textAlign: 'center', fontSize: '10px', color: '#D1D5DB', padding: '8px 0 20px' }}>
+        <div style={{ textAlign: 'center', fontSize: '10px', color: th.sub, padding: '8px 0 20px' }}>
           Trade Oracle · AI Signals · Not financial advice
         </div>
       </div>
