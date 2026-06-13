@@ -235,7 +235,8 @@ export default function App() {
         trend1m: trendDir, trend15m: t15m, trend1h: t1h,
         ema: ema10_1h ? ema10_1h.toFixed(decimals) : 'N/A',
         rsi: rsiVal || 'N/A', high: high.toFixed(decimals), low: low.toFixed(decimals),
-        closes: closes.slice(-5).map(c => c.toFixed(decimals)).join(', ')
+        closes: closes.slice(-5).map(c => c.toFixed(decimals)).join(', '),
+        candles: vals.slice(-30)
       });
       setSignal(sigRes.data);
       setSignalsToday(s => s + 1);
