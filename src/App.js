@@ -528,14 +528,14 @@ export default function App() {
               </div>
 
               {signal.action && (
-                <div style={{ background: '#fff', border: `1px solid ${G}33`, borderRadius: '8px', padding: '12px', borderLeft: `3px solid ${G}`, marginBottom: '8px' }}>
+                <div style={{ background: dark ? '#0D2B1F' : '#fff', border: `1px solid ${G}33`, borderRadius: '8px', padding: '12px', borderLeft: `3px solid ${G}`, marginBottom: '8px' }}>
                   <div style={{ fontSize: '10px', color: G, fontWeight: '600', marginBottom: '4px' }}>⚡ What to do now</div>
                   <div style={{ fontSize: '13px', color: '#111', lineHeight: '1.5', fontWeight: '500' }}>{signal.action}</div>
                 </div>
               )}
 
               {signal.confidence != null && signal.confidence < 75 && (
-                <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '10px', marginBottom: '8px' }}>
+                <div style={{ background: dark ? '#2B2000' : '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '10px', marginBottom: '8px' }}>
                   <div style={{ fontSize: '11px', color: '#B45309', fontWeight: '500' }}>⚠ Low confidence — consider skipping this trade</div>
                 </div>
               )}
@@ -616,7 +616,7 @@ export default function App() {
             <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{showRiskCalc ? '▲' : '▼'}</span>
           </button>
           {showRiskCalc && signal && signal.signal !== 'WAIT' && (
-            <div style={{ padding: '0 14px 14px', borderTop: '1px solid #F3F4F6' }}>
+            <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${th.border}` }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: '12px 0' }}>
                 {[
                   { label: 'Account Balance ($)', val: riskBalance, set: setRiskBalance },
