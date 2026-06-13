@@ -384,16 +384,16 @@ export default function App() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }} className="fade-up">
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>Live Price</div>
+            <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>Live Price</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: price ? (priceUp ? G : '#EF4444') : '#D1D5DB', fontFamily: "'DM Mono', monospace", letterSpacing: '-0.5px' }}>
               {price ? price.toFixed(decimals) : '-.-----'}
             </div>
             <div style={{ fontSize: '13px', color: priceUp ? G : '#EF4444', marginTop: '2px' }}>{price ? (priceUp ? '▲' : '▼') : ''}</div>
           </div>
           <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }} className="fade-up">
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>RSI (14)</div>
+            <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500', marginBottom: '6px' }}>RSI (14)</div>
             <div style={{ fontSize: '16px', fontWeight: '700', color: rsiInfo.color, fontFamily: "'DM Mono', monospace" }}>{rsiInfo.label}</div>
-            <div style={{ fontSize: '10px', color: '#D1D5DB', marginTop: '4px' }}>1min candles</div>
+            <div style={{ fontSize: '10px', color: dark ? '#4B5563' : '#D1D5DB', marginTop: '4px' }}>1min candles</div>
           </div>
         </div>
 
@@ -426,7 +426,7 @@ export default function App() {
           return (
             <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px 4px' }}>
-                <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Live Chart · 1M</span>
+                <span style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500' }}>Live Chart · 1M</span>
                 {signal && signal.signal !== 'WAIT' && (
                   <span style={{ fontSize: '11px', fontWeight: '600', color: signalColor }}>
                     {signal.signal === 'BUY' ? '▲' : '▼'} {signal.signal} @ {signal.entry?.toFixed(dec)}
@@ -435,7 +435,7 @@ export default function App() {
               </div>
               <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
                 {priceTicks.map((p,i) => (
-                  <line key={i} x1={LPad} y1={py(p)} x2={W-RPad} y2={py(p)} stroke="#F3F4F6" strokeWidth="1"/>
+                  <line key={i} x1={LPad} y1={py(p)} x2={W-RPad} y2={py(p)} stroke={dark ? '#2A2D3E' : '#F3F4F6'} strokeWidth="1"/>
                 ))}
                 {candles.map((c,i) => {
                   const o=parseFloat(c.open), cl=parseFloat(c.close), hi=parseFloat(c.high), lo=parseFloat(c.low);
@@ -467,10 +467,10 @@ export default function App() {
                   <polygon points={`${cx(lastIdx)},${py(parseFloat(candles[lastIdx].high))-4} ${cx(lastIdx)-5},${py(parseFloat(candles[lastIdx].high))-12} ${cx(lastIdx)+5},${py(parseFloat(candles[lastIdx].high))-12}`} fill="#EF4444"/>
                 )}
                 {priceTicks.map((p,i) => (
-                  <text key={i} x={W-RPad+4} y={py(p)+3} fill="#9CA3AF" fontSize="6.5" fontFamily="monospace">{p.toFixed(dec)}</text>
+                  <text key={i} x={W-RPad+4} y={py(p)+3} fill={dark ? '#6B7280' : '#9CA3AF'} fontSize="6.5" fontFamily="monospace">{p.toFixed(dec)}</text>
                 ))}
                 {candles.map((c,i) => i % timeStep === 0 ? (
-                  <text key={i} x={cx(i)} y={H-3} fill="#D1D5DB" fontSize="6" textAnchor="middle" fontFamily="monospace">
+                  <text key={i} x={cx(i)} y={H-3} fill={dark ? '#4B5563' : '#D1D5DB'} fontSize="6" textAnchor="middle" fontFamily="monospace">
                     {c.datetime ? c.datetime.split(' ')[1]?.substring(0,5) : ''}
                   </text>
                 ) : null)}
@@ -480,7 +480,7 @@ export default function App() {
         })()}
 
         <div style={{ background: signal ? (dark ? (signal.signal==='BUY' ? '#0D2B1F' : signal.signal==='SELL' ? '#2B0D0D' : '#1A1D27') : signalBg) : th.card, border: `1px solid ${signal ? signalColor + '33' : '#E5E7EB'}`, borderRadius: '12px', padding: '16px', borderLeft: `3px solid ${signalColor}` }} className="fade-up">
-          <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '12px' }}>AI Signal Engine</div>
+          <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500', marginBottom: '12px' }}>AI Signal Engine</div>
 
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: G }}>
@@ -530,7 +530,7 @@ export default function App() {
               {signal.action && (
                 <div style={{ background: dark ? '#0D2B1F' : '#fff', border: `1px solid ${G}33`, borderRadius: '8px', padding: '12px', borderLeft: `3px solid ${G}`, marginBottom: '8px' }}>
                   <div style={{ fontSize: '10px', color: G, fontWeight: '600', marginBottom: '4px' }}>⚡ What to do now</div>
-                  <div style={{ fontSize: '13px', color: '#111', lineHeight: '1.5', fontWeight: '500' }}>{signal.action}</div>
+                  <div style={{ fontSize: '13px', color: dark ? '#F9FAFB' : '#111', lineHeight: '1.5', fontWeight: '500' }}>{signal.action}</div>
                 </div>
               )}
 
@@ -564,7 +564,7 @@ export default function App() {
 
         {candles.length > 0 && (
           <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '10px' }}>Market Overview</div>
+            <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500', marginBottom: '10px' }}>Market Overview</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
               {[
                 { label: 'High', value: Math.max(...candles.map(c => parseFloat(c.high))).toFixed(decimals), color: G },
@@ -573,7 +573,7 @@ export default function App() {
                 { label: 'Trend', value: trend === 'UPTREND' ? '▲ Up' : '▼ Down', color: trend === 'UPTREND' ? G : '#EF4444' },
               ].map(item => (
                 <div key={item.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '9px', color: '#9CA3AF', marginBottom: '3px' }}>{item.label}</div>
+                  <div style={{ fontSize: '9px', color: dark ? '#6B7280' : '#9CA3AF', marginBottom: '3px' }}>{item.label}</div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: item.color, fontFamily: "'DM Mono', monospace" }}>{item.value}</div>
                 </div>
               ))}
@@ -583,15 +583,15 @@ export default function App() {
 
         {commentary && (
           <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500', marginBottom: '8px' }}>🧠 AI Market Brief</div>
-            <p style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6' }}>{commentary}</p>
+            <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500', marginBottom: '8px' }}>🧠 AI Market Brief</div>
+            <p style={{ fontSize: '13px', color: dark ? '#D1D5DB' : '#374151', lineHeight: '1.6' }}>{commentary}</p>
           </div>
         )}
 
         {sentiment && (
           <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Market Sentiment</div>
+              <div style={{ fontSize: '11px', color: dark ? '#6B7280' : '#9CA3AF', fontWeight: '500' }}>Market Sentiment</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', fontWeight: '600', color: sentiment.sentiment==='BULLISH' ? G : sentiment.sentiment==='BEARISH' ? '#EF4444' : '#6B7280' }}>
                   {sentiment.sentiment==='BULLISH' ? '▲' : sentiment.sentiment==='BEARISH' ? '▼' : '●'} {sentiment.sentiment}
@@ -599,7 +599,7 @@ export default function App() {
                 <span style={{ fontSize: '18px', fontWeight: '700', color: sentiment.score>=6 ? G : sentiment.score<=4 ? '#EF4444' : '#6B7280', fontFamily: "'DM Mono', monospace" }}>{sentiment.score}/10</span>
               </div>
             </div>
-            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>{sentiment.summary}</p>
+            <p style={{ fontSize: '12px', color: dark ? '#9CA3AF' : '#6B7280', marginBottom: '8px' }}>{sentiment.summary}</p>
             {sentiment.factors && sentiment.factors.map((f,i) => (
               <div key={i} style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '3px' }}>• {f}</div>
             ))}
@@ -680,7 +680,7 @@ export default function App() {
 
         {signalHistory.filter(s => s.signal !== 'WAIT').length > 0 && (
           <div>
-            <div style={{ fontSize: '12px', color: '#6B7280', fontWeight: '600', marginBottom: '8px' }}>Signal History</div>
+            <div style={{ fontSize: '12px', color: dark ? '#9CA3AF' : '#6B7280', fontWeight: '600', marginBottom: '8px' }}>Signal History</div>
             {signalHistory.filter(s => s.signal !== 'WAIT').slice(0, 10).map(s => (
               <div key={s.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -691,12 +691,12 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '700', color: s.signal==='BUY' ? G : '#EF4444' }}>{s.signal}</span>
                   <div>
-                    <div style={{ fontSize: '11px', color: '#374151', fontWeight: '500' }}>{s.pair}</div>
+                    <div style={{ fontSize: '11px', color: dark ? '#F9FAFB' : '#374151', fontWeight: '500' }}>{s.pair}</div>
                     <div style={{ fontSize: '10px', color: '#9CA3AF' }}>{new Date(s.timestamp).toLocaleTimeString()}</div>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '11px', color: '#374151', fontFamily: "'DM Mono', monospace" }}>@ {s.entry}</div>
+                  <div style={{ fontSize: '11px', color: dark ? '#F9FAFB' : '#374151', fontFamily: "'DM Mono', monospace" }}>@ {s.entry}</div>
                   <div style={{ fontSize: '10px', color: s.confidence>=75 ? G : '#F59E0B' }}>{s.confidence}% conf</div>
                   <div style={{ fontSize: '10px', color: s.status==='win' ? G : s.status==='loss' ? '#EF4444' : '#9CA3AF' }}>
                     {s.status==='win' ? '✓ Win' : s.status==='loss' ? '✗ Loss' : '● Open'}
