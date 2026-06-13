@@ -91,7 +91,7 @@ const SplashScreen = ({ onDone }) => {
 const Badge = ({ label, up, th: bth = { card: '#fff', border: '#E5E7EB' } }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    background: th.card, border: `1px solid ${th.border}`, borderRadius: '10px',
+    background: bth.card, border: `1px solid ${bth.border}`, borderRadius: '10px',
     padding: '10px 8px', flex: 1,
   }}>
     <span style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '500', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</span>
@@ -311,7 +311,7 @@ export default function App() {
   const priceUp = price > prevPrice;
   const signalColor = signal?.signal === 'BUY' ? G : signal?.signal === 'SELL' ? '#EF4444' : '#6B7280';
   const signalBg = signal?.signal === 'BUY' ? G_LIGHT : signal?.signal === 'SELL' ? '#FEF2F2' : '#F9FAFB';
-  const toggleDark = () => setDark(d => { const n = df -h /sdcard; localStorage.setItem('to_dark', String(n)); return n; });
+  const toggleDark = () => setDark(d => { const n = !d; localStorage.setItem('to_dark', String(n)); return n; });
   const th = {
     bg: dark ? '#0F1117' : '#F7F8FA',
     card: dark ? '#1A1D27' : '#ffffff',
