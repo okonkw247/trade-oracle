@@ -365,6 +365,32 @@ export default function App() {
         </button>
       </div>
 
+      {!price && !marketClosed && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: dark ? 'rgba(15,17,23,0.92)' : 'rgba(247,248,250,0.92)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          zIndex: 200,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'Inter', sans-serif",
+        }}>
+          <div style={{ width: '52px', height: '52px', background: G, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '0 8px 24px rgba(0,201,127,0.3)' }}>
+            <span style={{ color: '#fff', fontSize: '26px' }}>◈</span>
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: '700', color: dark ? '#F9FAFB' : '#111', marginBottom: '8px', letterSpacing: '-0.3px' }}>Connecting to markets</div>
+          <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '32px' }}>Fetching live {pair} data...</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{
+                width: '10px', height: '10px', borderRadius: '50%', background: G,
+                animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
