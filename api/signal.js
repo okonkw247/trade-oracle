@@ -85,13 +85,51 @@ const enforcePips = (signal, entry, sl, tp1, tp2, pair, atr) => {
   return { sl, tp1, tp2 };
 };
 
+// ── MULTI-TIMEFRAME WEIGHTED SCORING ─────────────────────────────
+// Higher timeframes carry more weight — a 4H trend is a stronger
+// signal of real direction than 1M noise. This produces a single
+// -1 (fully bearish) to +1 (fully bullish) score plus a readable
+// breakdown so the AI (and the user) can see exactly why.
+const TF_WEIGHTS = { tf4h: 3, tf1h: 2, tf15m: 1.5, tf1m: 1 };
+
+const scoreTimeframes = ({ trend1m, trend15m, trend1h, trend4h }) => {
+  const dirScore = (t) => t === 'UPTREND' ? 1 : t === 'DOWNTREND' ? -1 : 0;
+  const entries = [
+    { label: '1M', val: trend1m, weight: TF_WEIGHTS.tf1m },
+    { label: '15M', val: trend15m, weight: TF_WEIGHTS.tf15m },
+    { label: '1H', val: trend1h, weight: TF_WEIGHTS.tf1h },
+    { label: '4H', val: trend4h, weight: TF_WEIGHTS.tf4h },
+  ].filter(e => e.val); // skip timeframes the caller didn't provide
+
+  if (entries.length === 0) return { score: 0, breakdown: 'No timeframe data', alignment: 'UNKNOWN' };
+
+  const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
+  const weightedSum = entries.reduce((sum, e) => sum + dirScore(e.val) * e.weight, 0);
+  const score = totalWeight > 0 ? weightedSum / totalWeight : 0; // normalized -1..1
+
+  const breakdown = entries
+    .map(e => `${e.label}=${e.val === 'UPTREND' ? '▲' : e.val === 'DOWNTREND' ? '▼' : '–'}`)
+    .join(' ');
+
+  let alignment;
+  if (score >= 0.7) alignment = 'STRONG BULLISH ALIGNMENT';
+  else if (score >= 0.3) alignment = 'MODERATE BULLISH ALIGNMENT';
+  else if (score <= -0.7) alignment = 'STRONG BEARISH ALIGNMENT';
+  else if (score <= -0.3) alignment = 'MODERATE BEARISH ALIGNMENT';
+  else alignment = 'MIXED / NO CLEAR ALIGNMENT';
+
+  return { score: Math.round(score * 100) / 100, breakdown, alignment };
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { pair, price, trend1m, trend15m, trend1h, rsi, high, low, closes, candles } = req.body;
+  // trend4h is optional — older callers (without it) still work fine,
+  // they just won't get the 4H weighting bonus.
+  const { pair, price, trend1m, trend15m, trend1h, trend4h, rsi, high, low, closes, candles } = req.body;
   if (!pair || !price) return res.status(400).json({ error: 'Missing data' });
 
   const priceNum = parseFloat(price);
@@ -124,8 +162,12 @@ module.exports = async (req, res) => {
     else bbPosition = 'LOWER HALF';
   }
 
+  // ── Weighted multi-timeframe score ──
+  const tfScore = scoreTimeframes({ trend1m, trend15m, trend1h, trend4h });
+
   const bullishFactors = [];
   const bearishFactors = [];
+  if (trend4h === 'UPTREND') bullishFactors.push('4H uptrend (high weight)');
   if (trend1h === 'UPTREND') bullishFactors.push('1H uptrend');
   if (trend15m === 'UPTREND') bullishFactors.push('15M uptrend');
   if (trend1m === 'UPTREND') bullishFactors.push('1M uptrend');
@@ -136,6 +178,7 @@ module.exports = async (req, res) => {
   if (stoch && stoch < 20) bullishFactors.push('Stoch oversold');
   if (distToSupport < 8) bullishFactors.push('At key support');
 
+  if (trend4h === 'DOWNTREND') bearishFactors.push('4H downtrend (high weight)');
   if (trend1h === 'DOWNTREND') bearishFactors.push('1H downtrend');
   if (trend15m === 'DOWNTREND') bearishFactors.push('15M downtrend');
   if (trend1m === 'DOWNTREND') bearishFactors.push('1M downtrend');
@@ -157,27 +200,39 @@ module.exports = async (req, res) => {
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 250,
+        max_tokens: 280,
         temperature: 0.05,
         messages: [
           {
             role: 'system',
-            content: `You are a professional institutional Forex trader with 20 years experience. You analyze technical confluence and generate high-probability signals.
+            content: `You are a professional institutional Forex trader with 20 years experience. You analyze technical confluence across MULTIPLE WEIGHTED TIMEFRAMES and generate high-probability signals. Higher timeframes (4H, 1H) are weighted more heavily than lower ones (15M, 1M) because they represent the dominant trend, not noise.
 
 Output ONLY valid JSON no markdown:
 {"signal":"BUY|SELL|WAIT","entry":number,"sl":number,"tp1":number,"tp2":number,"rr":"1:2","confidence":number,"reason":"max 12 words","action":"one clear trade instruction"}
 
 RULES:
-- BUY: needs 1H=UPTREND + 15M=UPTREND + min 3 bullish factors. Confidence = 60 + (bullishFactors x 5), max 92
-- SELL: needs 1H=DOWNTREND + 15M=DOWNTREND + min 3 bearish factors. Confidence = 60 + (bearishFactors x 5), max 92
-- WAIT: if 1H and 15M conflict OR fewer than 3 factors align
+- BUY: needs timeframeScore >= 0.3 (bullish alignment) + min 3 bullish factors. Confidence = 55 + (bullishFactors x 4) + (timeframeScore x 15), max 95
+- SELL: needs timeframeScore <= -0.3 (bearish alignment) + min 3 bearish factors. Confidence = 55 + (bearishFactors x 4) + (abs(timeframeScore) x 15), max 95
+- WAIT: if timeframeScore is between -0.3 and 0.3 (MIXED) OR fewer than 3 factors align
+- A strong 4H/1H trend with weak 1M/15M can still justify a signal — weight the higher timeframes more
 - entry: use exact current price
 - sl: use ATR-based distance provided, must be realistic forex price near entry
 - tp1: 1.5x SL distance, tp2: 2.5x SL distance`
           },
           {
             role: 'user',
-            content: 'PAIR: ' + pair + ' | PRICE: ' + price + '\n\nTRENDS: 1M=' + trend1m + ' 15M=' + trend15m + ' 1H=' + trend1h + '\nEMA Cross: ' + emaCross + ' (EMA20=' + (ema20 ? ema20.toFixed(dec) : 'N/A') + ' EMA50=' + (ema50 ? ema50.toFixed(dec) : 'N/A') + ')\n\nMOMENTUM:\nRSI: ' + rsiVal + (rsiVal < 30 ? ' OVERSOLD' : rsiVal > 70 ? ' OVERBOUGHT' : rsiVal < 45 ? ' bearish bias' : rsiVal > 55 ? ' bullish bias' : ' neutral') + '\nMACD: ' + macdSignal + (macd ? ' (hist: ' + (macd.histogram ? macd.histogram.toFixed(6) : 'N/A') + ')' : '') + '\nStochastic: ' + (stoch !== null ? stoch + '%' + (stoch < 20 ? ' OVERSOLD' : stoch > 80 ? ' OVERBOUGHT' : '') : 'N/A') + '\n\nVOLATILITY:\nATR: ' + (atrPips ? atrPips + ' pips' : 'N/A') + '\nBollinger: price ' + bbPosition + (bb ? ' (upper=' + bb.upper.toFixed(dec) + ' lower=' + bb.lower.toFixed(dec) + ')' : '') + '\nResistance: ' + high + ' (' + distToResistance + ' pips away)\nSupport: ' + low + ' (' + distToSupport + ' pips away)\n\nCONFLUENCE: ' + confluence + '\nBullish: ' + (bullishFactors.join(', ') || 'none') + '\nBearish: ' + (bearishFactors.join(', ') || 'none') + '\nLast 5 closes: ' + closes
+            content: 'PAIR: ' + pair + ' | PRICE: ' + price +
+              '\n\nWEIGHTED TIMEFRAME SCORE: ' + tfScore.score + ' (' + tfScore.alignment + ')' +
+              '\nTimeframes: ' + tfScore.breakdown + ' [weights: 4H x3, 1H x2, 15M x1.5, 1M x1]' +
+              '\nEMA Cross: ' + emaCross + ' (EMA20=' + (ema20 ? ema20.toFixed(dec) : 'N/A') + ' EMA50=' + (ema50 ? ema50.toFixed(dec) : 'N/A') + ')' +
+              '\n\nMOMENTUM:\nRSI: ' + rsiVal + (rsiVal < 30 ? ' OVERSOLD' : rsiVal > 70 ? ' OVERBOUGHT' : rsiVal < 45 ? ' bearish bias' : rsiVal > 55 ? ' bullish bias' : ' neutral') +
+              '\nMACD: ' + macdSignal + (macd ? ' (hist: ' + (macd.histogram ? macd.histogram.toFixed(6) : 'N/A') + ')' : '') +
+              '\nStochastic: ' + (stoch !== null ? stoch + '%' + (stoch < 20 ? ' OVERSOLD' : stoch > 80 ? ' OVERBOUGHT' : '') : 'N/A') +
+              '\n\nVOLATILITY:\nATR: ' + (atrPips ? atrPips + ' pips' : 'N/A') +
+              '\nBollinger: price ' + bbPosition + (bb ? ' (upper=' + bb.upper.toFixed(dec) + ' lower=' + bb.lower.toFixed(dec) + ')' : '') +
+              '\nResistance: ' + high + ' (' + distToResistance + ' pips away)\nSupport: ' + low + ' (' + distToSupport + ' pips away)' +
+              '\n\nCONFLUENCE: ' + confluence + '\nBullish: ' + (bullishFactors.join(', ') || 'none') + '\nBearish: ' + (bearishFactors.join(', ') || 'none') +
+              '\nLast 5 closes: ' + closes
           }
         ]
       },
@@ -188,7 +243,14 @@ RULES:
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     const fixed = enforcePips(parsed.signal, parsed.entry, parsed.sl, parsed.tp1, parsed.tp2, pair, atr);
-    res.json({ ...parsed, ...fixed, indicators: { rsi: rsiVal, macd: macdSignal, ema: emaCross, stoch, bbPosition, atrPips, confluence } });
+    res.json({
+      ...parsed,
+      ...fixed,
+      indicators: { rsi: rsiVal, macd: macdSignal, ema: emaCross, stoch, bbPosition, atrPips, confluence },
+      timeframeScore: tfScore.score,
+      timeframeAlignment: tfScore.alignment,
+      timeframeBreakdown: tfScore.breakdown,
+    });
   } catch (err) {
     console.error('Signal error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Signal failed' });
