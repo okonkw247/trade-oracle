@@ -27,16 +27,58 @@ const calcRSI = (closes, period = 14) => {
 
 const sendMessage = async (chatId, text, extra = {}) => {
   try {
-    await axios.post(`${TG_API}/sendMessage`, {
+    const res = await axios.post(`${TG_API}/sendMessage`, {
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
       ...extra,
     });
+    return res.data.result;
   } catch (e) {
     console.error('Telegram send error:', e.response?.data || e.message);
+    return null;
   }
 };
+
+const editMessage = async (chatId, messageId, text, extra = {}) => {
+  try {
+    await axios.post(`${TG_API}/editMessageText`, {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+      ...extra,
+    });
+  } catch (e) {
+    console.error('Telegram edit error:', e.response?.data || e.message);
+  }
+};
+
+const answerCallback = async (callbackQueryId, text = '') => {
+  try {
+    await axios.post(`${TG_API}/answerCallbackQuery`, {
+      callback_query_id: callbackQueryId,
+      text,
+    });
+  } catch (e) {
+    console.error('Telegram answerCallback error:', e.response?.data || e.message);
+  }
+};
+
+const pairKeyboard = () => ({
+  inline_keyboard: [
+    PAIRS.slice(0, 3).map(p => ({ text: p, callback_data: `sig:${p}` })),
+    PAIRS.slice(3).map(p => ({ text: p, callback_data: `sig:${p}` })),
+  ],
+});
+
+const refreshButton = (pair) => ({
+  inline_keyboard: [
+    [{ text: '🔄 Refresh', callback_data: `sig:${pair}` }],
+    PAIRS.slice(0, 3).map(p => ({ text: p, callback_data: `sig:${p}` })),
+    PAIRS.slice(3).map(p => ({ text: p, callback_data: `sig:${p}` })),
+  ],
+});
 
 const normalizePair = (input) => {
   const clean = input.toUpperCase().replace(/[^A-Z]/g, '');
@@ -103,19 +145,48 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(200).json({ ok: true });
 
   const update = req.body;
+  const baseUrl = `https://${req.headers.host}`;
+
+  // ── Handle button taps ──
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = cb.message.chat.id;
+    const messageId = cb.message.message_id;
+    const data = cb.data || '';
+
+    if (data.startsWith('sig:')) {
+      const pair = data.replace('sig:', '');
+      await answerCallback(cb.id, `Analyzing ${pair}...`);
+      await editMessage(chatId, messageId, `⏳ Analyzing ${pair}...`);
+      try {
+        const result = await fetchSignalForPair(pair, baseUrl);
+        if (result.error) {
+          await editMessage(chatId, messageId, `⚠️ ${result.error}`, { reply_markup: pairKeyboard() });
+        } else {
+          await editMessage(chatId, messageId, formatSignalMessage(result), { reply_markup: refreshButton(pair) });
+        }
+      } catch (err) {
+        console.error('Bot callback error:', err.response?.data || err.message);
+        await editMessage(chatId, messageId, `⚠️ Something went wrong. Tap a pair to retry.`, { reply_markup: pairKeyboard() });
+      }
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── Handle text messages ──
   const msg = update.message;
   if (!msg || !msg.text) return res.status(200).json({ ok: true });
 
   const chatId = msg.chat.id;
   const text = msg.text.trim();
-  const baseUrl = `https://${req.headers.host}`;
 
   try {
     if (text === '/start' || text === '/help') {
       await sendMessage(chatId,
         `⚡ <b>Trade Oracle Bot</b>\n\n` +
         `Commands:\n` +
-        `/signal EURUSD — get a live signal\n` +
+        `/signal — tap a pair for a live signal\n` +
+        `/signal EURUSD — direct signal lookup\n` +
         `/pairs — list supported pairs\n\n` +
         `Supported: ${PAIRS.join(', ')}`
       );
@@ -123,16 +194,23 @@ module.exports = async (req, res) => {
       await sendMessage(chatId, `📋 Supported pairs:\n${PAIRS.map(p => `• ${p}`).join('\n')}`);
     } else if (text.startsWith('/signal')) {
       const arg = text.replace('/signal', '').trim();
-      const pair = normalizePair(arg || 'EURUSD');
+      if (!arg) {
+        await sendMessage(chatId, `📡 Choose a pair:`, { reply_markup: pairKeyboard() });
+        return res.status(200).json({ ok: true });
+      }
+      const pair = normalizePair(arg);
       if (!pair) {
-        await sendMessage(chatId, `❌ Unknown pair. Try one of: ${PAIRS.join(', ')}`);
+        await sendMessage(chatId, `❌ Unknown pair. Choose one:`, { reply_markup: pairKeyboard() });
       } else {
-        await sendMessage(chatId, `⏳ Analyzing ${pair}...`);
+        const sent = await sendMessage(chatId, `⏳ Analyzing ${pair}...`);
         const result = await fetchSignalForPair(pair, baseUrl);
+        const messageId = sent?.message_id;
         if (result.error) {
-          await sendMessage(chatId, `⚠️ ${result.error}`);
+          if (messageId) await editMessage(chatId, messageId, `⚠️ ${result.error}`, { reply_markup: pairKeyboard() });
+          else await sendMessage(chatId, `⚠️ ${result.error}`);
         } else {
-          await sendMessage(chatId, formatSignalMessage(result));
+          if (messageId) await editMessage(chatId, messageId, formatSignalMessage(result), { reply_markup: refreshButton(pair) });
+          else await sendMessage(chatId, formatSignalMessage(result), { reply_markup: refreshButton(pair) });
         }
       }
     } else {
