@@ -68,9 +68,7 @@ const SplashScreen = ({ onDone }) => {
     }}>
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
-          <div style={{ width: '36px', height: '36px', background: G, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: '#fff', fontSize: '18px' }}>◈</span>
-          </div>
+          <img src="/logo192.png" alt="Trade Oracle" style={{ width: '36px', height: '36px', borderRadius: '10px' }} />
           <span style={{ fontSize: '22px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>Trade Oracle</span>
         </div>
         <p style={{ fontSize: '13px', color: '#6B7280' }}>AI-powered Forex signals</p>
@@ -350,9 +348,7 @@ export default function App() {
 
       <div style={{ background: th.card, borderBottom: `1px solid ${th.border}`, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '28px', height: '28px', background: G, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: '#fff', fontSize: '14px' }}>◈</span>
-          </div>
+          <img src="/logo192.png" alt="Trade Oracle" style={{ width: '28px', height: '28px', borderRadius: '8px' }} />
           <span style={{ fontSize: '15px', fontWeight: '700', color: th.text, letterSpacing: '-0.3px' }}>Trade Oracle</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -376,9 +372,7 @@ export default function App() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           fontFamily: "'Inter', sans-serif",
         }}>
-          <div style={{ width: '52px', height: '52px', background: G, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '0 8px 24px rgba(0,201,127,0.3)' }}>
-            <span style={{ color: '#fff', fontSize: '26px' }}>◈</span>
-          </div>
+          <img src="/logo192.png" alt="Trade Oracle" style={{ width: '52px', height: '52px', borderRadius: '14px', marginBottom: '20px', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }} />
           <div style={{ fontSize: '18px', fontWeight: '700', color: dark ? '#F9FAFB' : '#111', marginBottom: '8px', letterSpacing: '-0.3px' }}>Connecting to markets</div>
           <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '32px' }}>Fetching live {pair} data...</div>
           <div style={{ display: 'flex', gap: '8px' }}>
