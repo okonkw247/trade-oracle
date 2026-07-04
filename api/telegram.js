@@ -1,4 +1,65 @@
 const axios = require('axios');
+const { Redis } = require('@upstash/redis');
+
+const redis = Redis.fromEnv();
+
+// ── REGISTRATION FLOW ─────────────────────────────────────────────
+const REG_PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF'];
+const REG_PLATFORMS = ['MT4', 'MT5', 'Exness Terminal', 'Other'];
+const REG_LEVELS = ['Beginner', 'Intermediate', 'Pro'];
+
+const getUserKey = (userId) => `user:${userId}`;
+
+const getUserProfile = async (userId) => {
+  try {
+    const data = await redis.get(getUserKey(userId));
+    return data || null;
+  } catch (e) {
+    console.error('Redis get error:', e.message);
+    return null;
+  }
+};
+
+const saveUserProfile = async (userId, profile) => {
+  try {
+    await redis.set(getUserKey(userId), profile);
+    return true;
+  } catch (e) {
+    console.error('Redis set error:', e.message);
+    return false;
+  }
+};
+
+const isRegistered = (profile) => {
+  return profile && profile.pair && profile.platform && profile.level;
+};
+
+const regStepKeyboard = (step) => {
+  if (step === 'pair') {
+    return {
+      inline_keyboard: [
+        REG_PAIRS.slice(0, 3).map(p => ({ text: p, callback_data: `reg:pair:${p}` })),
+        REG_PAIRS.slice(3).map(p => ({ text: p, callback_data: `reg:pair:${p}` })),
+      ],
+    };
+  }
+  if (step === 'platform') {
+    return {
+      inline_keyboard: [
+        REG_PLATFORMS.slice(0, 2).map(p => ({ text: p, callback_data: `reg:platform:${p}` })),
+        REG_PLATFORMS.slice(2).map(p => ({ text: p, callback_data: `reg:platform:${p}` })),
+      ],
+    };
+  }
+  if (step === 'level') {
+    return {
+      inline_keyboard: [
+        REG_LEVELS.map(l => ({ text: l, callback_data: `reg:level:${l}` })),
+      ],
+    };
+  }
+  return { inline_keyboard: [] };
+};
 
 const buildChartBuffer = async (candles, pair, signal) => {
   const recent = candles.slice(-40);
@@ -341,7 +402,54 @@ module.exports = async (req, res) => {
     const messageId = cb.message.message_id;
     const data = cb.data || '';
 
+    if (data.startsWith('reg:')) {
+      const [, step, value] = data.split(':');
+      const userId = cb.from.id;
+      let profile = (await getUserProfile(userId)) || {};
+
+      if (step === 'pair') {
+        profile.pair = value;
+        await saveUserProfile(userId, profile);
+        await answerCallback(cb.id, `Pair set: ${value}`);
+        await editMessage(chatId, messageId,
+          `✅ Pair: <b>${value}</b>\n\n🖥 Which platform do you trade on?`,
+          { reply_markup: regStepKeyboard('platform') }
+        );
+      } else if (step === 'platform') {
+        profile.platform = value;
+        await saveUserProfile(userId, profile);
+        await answerCallback(cb.id, `Platform set: ${value}`);
+        await editMessage(chatId, messageId,
+          `✅ Platform: <b>${value}</b>\n\n📈 What's your experience level?`,
+          { reply_markup: regStepKeyboard('level') }
+        );
+      } else if (step === 'level') {
+        profile.level = value;
+        await saveUserProfile(userId, profile);
+        await answerCallback(cb.id, `Level set: ${value}`);
+        await editMessage(chatId, messageId,
+          `🎉 <b>You're all set!</b>\n\n` +
+          `📊 Pair: <b>${profile.pair}</b>\n` +
+          `🖥 Platform: <b>${profile.platform}</b>\n` +
+          `📈 Level: <b>${profile.level}</b>\n\n` +
+          `Try <b>/signal</b> anytime to get a live AI-powered forex signal.`
+        );
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     if (data.startsWith('sig:')) {
+      const userId = cb.from.id;
+      const profile = await getUserProfile(userId);
+      if (!isRegistered(profile)) {
+        await answerCallback(cb.id, 'Please complete registration first');
+        await editMessage(chatId, messageId,
+          `⚡ <b>Welcome to Trade Oracle!</b>\n\nBefore you can use signals, let's set up your profile.\n\n📊 Which pair do you trade most?`,
+          { reply_markup: regStepKeyboard('pair') }
+        );
+        return res.status(200).json({ ok: true });
+      }
+
       const parts = data.replace('sig:', '').split(':');
       const pair = parts[0];
       const existingChartMsgId = parts[1] ? parseInt(parts[1], 10) : null;
@@ -384,10 +492,29 @@ module.exports = async (req, res) => {
   if (!msg || !msg.text) return res.status(200).json({ ok: true });
 
   const chatId = msg.chat.id;
+  const userId = msg.from.id;
   const text = msg.text.trim();
 
   try {
-    if (text === '/start' || text === '/help') {
+    const profile = await getUserProfile(userId);
+    const registered = isRegistered(profile);
+
+    if (text === '/start') {
+      if (registered) {
+        await sendMessage(chatId,
+          `👋 Welcome back!\n\n` +
+          `📊 Pair: <b>${profile.pair}</b>  ·  🖥 ${profile.platform}  ·  📈 ${profile.level}\n\n` +
+          `Try <b>/signal</b> anytime, or /help for all commands.`
+        );
+      } else {
+        await sendMessage(chatId,
+          `⚡ <b>Welcome to Trade Oracle!</b>\n\n` +
+          `Before you start, let's set up your profile.\n\n` +
+          `📊 Which pair do you trade most?`,
+          { reply_markup: regStepKeyboard('pair') }
+        );
+      }
+    } else if (text === '/help') {
       await sendMessage(chatId,
         `⚡ <b>Trade Oracle Bot</b>\n\n` +
         `Commands:\n` +
@@ -395,6 +522,13 @@ module.exports = async (req, res) => {
         `/signal EURUSD — direct signal lookup\n` +
         `/pairs — list supported pairs\n\n` +
         `Supported: ${PAIRS.join(', ')}`
+      );
+    } else if (!registered) {
+      await sendMessage(chatId,
+        `⚡ <b>Welcome to Trade Oracle!</b>\n\n` +
+        `Before you can use signals, let's set up your profile.\n\n` +
+        `📊 Which pair do you trade most?`,
+        { reply_markup: regStepKeyboard('pair') }
       );
     } else if (text === '/pairs') {
       await sendMessage(chatId, `📋 Supported pairs:\n${PAIRS.map(p => `• ${p}`).join('\n')}`);
