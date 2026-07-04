@@ -1,8 +1,7 @@
 {
-  "crons": [
-    {
-      "path": "/api/telegram-cron",
-      "schedule": "*/5 * * * *"
+  "functions": {
+    "api/telegram-cron.js": {
+      "maxDuration": 60
     }
-  ]
+  }
 }
